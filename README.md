@@ -236,3 +236,9 @@ To contribute: fork the repo, make your changes, and open a pull request. Please
 This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
 **Note:** 3D models and media assets are licensed under **CC BY-NC-SA 4.0**.
+
+---
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=yousifamanuel/clawd-mochi)](https://www.star-history.com/#yousifamanuel/clawd-mochi)
