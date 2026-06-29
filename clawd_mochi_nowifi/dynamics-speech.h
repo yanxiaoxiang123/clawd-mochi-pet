@@ -17,6 +17,10 @@
 #define DYNAMICS_SPEECH_H
 
 #include <Arduino.h>
+#include <U8g2_for_Adafruit_GFX.h>
+
+// u8g2 instance defined in main sketch (initialized after tft)
+extern U8G2_FOR_ADAFRUIT_GFX u8g2;
 
 // ── Externs we need from main sketch / dynamics.h ─────────────
 extern Mood      currentMood;
@@ -152,31 +156,48 @@ bool shouldExpireQuip() {
 // ── Draw a quip bubble at the bottom of the screen ───────────
 // Position: centered horizontally, ~30px from bottom
 // Style: dark fill + orange border + white text
+// Text rendering uses U8g2 chinese1 font (UTF-8 capable)
 void drawQuipBubble(const char* text) {
-  uint8_t len = strlen(text);
-  if (len == 0) return;
-  if (len > 30) len = 30;  // safety
+  if (!text || text[0] == '\0') return;
 
-  // Text size=2: each char ~12px wide, ~16px tall
-  const int16_t charW = 12;
-  const int16_t charH = 16;
+  // Measure text width using U8g2 (handles UTF-8 Chinese chars + ASCII)
+  u8g2.setFont(u8g2_font_unifont_t_chinese1);  // 16x16 Chinese, 8x16 ASCII
+  uint16_t textW = u8g2.getUTF8Width(text);
+  if (textW == 0) return;
+  if (textW > 220) textW = 220;  // safety clamp
+
+  // chinese1 is 16px tall, baseline at +16
   const int16_t padX  = 10;
-  const int16_t padY  = 6;
-  const int16_t boxW  = len * charW + padX * 2;
-  const int16_t boxH  = charH + padY * 2;
+  const int16_t padY  = 4;
+  const int16_t boxH  = 24;  // 4 + 16 + 4
+  const int16_t boxW  = textW + padX * 2;
   const int16_t boxX  = (240 - boxW) / 2;
-  const int16_t boxY  = 200;  // 200..200+boxH (max 200+28=228, fits in 240)
+  const int16_t boxY  = 200;  // bottom of screen, y=200..224
 
   // Background panel (dark)
   tft.fillRoundRect(boxX, boxY, boxW, boxH, 4, C_DARKBG);
   // Orange border
   tft.drawRoundRect(boxX, boxY, boxW, boxH, 4, C_ORANGE);
 
-  // Text
-  tft.setTextColor(C_WHITE);
-  tft.setTextSize(2);
-  tft.setCursor(boxX + padX, boxY + padY);
-  tft.print(text);
+  // Text via U8g2 (transparent mode so dark bg shows through)
+  u8g2.setFontMode(0);                       // solid background
+  u8g2.setForegroundColor(C_WHITE);
+  u8g2.setBackgroundColor(C_DARKBG);
+  // Cursor: y is baseline, so y = boxY + 4 + 16 = 220
+  u8g2.setCursor(boxX + padX, boxY + padY + 16);
+  u8g2.print(text);
+}
+  tft.fillRoundRect(boxX, boxY, boxW, boxH, 4, C_DARKBG);
+  // Orange border
+  tft.drawRoundRect(boxX, boxY, boxW, boxH, 4, C_ORANGE);
+
+  // Text via U8g2 chinese1 font (UTF-8 capable)
+  u8g2.setFontMode(0);                       // solid background
+  u8g2.setForegroundColor(C_WHITE);
+  u8g2.setBackgroundColor(C_DARKBG);
+  // Cursor: y is baseline, so y = boxY + 4 + 16 = 220
+  u8g2.setCursor(boxX + padX, boxY + padY + 16);
+  u8g2.print(text);
 }
 
 // ── Show a quip (call once per trigger) ──────────────────────

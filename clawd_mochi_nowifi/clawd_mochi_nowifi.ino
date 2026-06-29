@@ -21,6 +21,7 @@
 #include <Adafruit_ST7789.h>
 #include <SPI.h>
 #include <math.h>
+#include <U8g2_for_Adafruit_GFX.h>
 
 // ── Pins ──────────────────────────────────────────────────────
 #define TFT_CS   4
@@ -29,6 +30,9 @@
 #define TFT_BLK  3
 
 Adafruit_ST7789 tft = Adafruit_ST7789(TFT_CS, TFT_DC, TFT_RST);
+
+// U8g2 instance for Chinese text rendering (bound to tft in setup())
+U8G2_FOR_ADAFRUIT_GFX u8g2;
 
 // ── Display ───────────────────────────────────────────────────
 #define DISP_W 240
@@ -381,6 +385,10 @@ void setup() {
   tft.setSPISpeed(40000000);
   tft.setRotation(1);
   initColours();
+
+  // Bind U8g2 to Adafruit tft (for Chinese text rendering in speech bubbles)
+  u8g2.begin(tft);
+  // Font set lazily inside drawQuipBubble to keep setup fast
 
   // ── Boot splash ────────────────────────────────────────────
   tft.fillScreen(animBgColor);
