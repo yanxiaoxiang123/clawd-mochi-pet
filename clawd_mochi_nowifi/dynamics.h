@@ -86,4 +86,52 @@ void updateMood() {
   }
 }
 
+// ── Idle animations ───────────────────────────────────────────
+extern void drawNormalEyes(int16_t ox, bool blink);
+extern int  speedMs(int ms);  // from main sketch
+
+void idleBlink() {
+  drawNormalEyes(0, true);  delay(speedMs(80));
+  drawNormalEyes(0, false);
+}
+
+void idleLookLeft() {
+  drawNormalEyes(-14, false); delay(speedMs(500));
+  drawNormalEyes(-14, true);  delay(speedMs(60));
+  drawNormalEyes(0,   false);
+}
+
+void idleLookRight() {
+  drawNormalEyes(14, false);  delay(speedMs(500));
+  drawNormalEyes(14, true);   delay(speedMs(60));
+  drawNormalEyes(0,   false);
+}
+
+void idleLookUp() {
+  // Approximation: "looking up" via held gaze pattern
+  // (a true up-gaze would need a new draw function; this is a
+  //  close-enough substitute using blink-once-then-stare)
+  drawNormalEyes(0, false); delay(speedMs(400));
+  drawNormalEyes(0, true);  delay(speedMs(60));
+  drawNormalEyes(0, false);
+}
+
+void idleBreathe() {
+  // Subtle whole-face pulse: use normal eye at offset ±2
+  for (uint8_t i = 0; i < 4; i++) {
+    drawNormalEyes(-2, false); delay(speedMs(220));
+    drawNormalEyes( 2, false); delay(speedMs(220));
+  }
+  drawNormalEyes(0, false);
+}
+
+void idleShiver() {
+  // Fast jitter left-right
+  for (uint8_t i = 0; i < 6; i++) {
+    drawNormalEyes(-4, false); delay(speedMs(40));
+    drawNormalEyes( 4, false); delay(speedMs(40));
+  }
+  drawNormalEyes(0, false);
+}
+
 #endif // DYNAMICS_H
