@@ -220,4 +220,42 @@ void reactAfter(uint8_t lastDemo) {
   }
 }
 
+// ── Reaction implementations ───────────────────────────────────
+extern void animSparkleEyes();
+extern void drawHeartEyes(float scale);
+extern void drawNormalEyes(int16_t ox, bool blink);
+extern void drawSleepyEyes(int16_t eyeH, int8_t zFrame);
+extern int  speedMs(int ms);
+
+void reactionSparkle() {
+  animSparkleEyes();
+}
+
+void reactionHeartPulse() {
+  // 3 quick scale pulses
+  for (uint8_t i = 0; i < 3; i++) {
+    drawHeartEyes(1.2);  delay(speedMs(90));
+    drawHeartEyes(1.0);  delay(speedMs(90));
+  }
+}
+
+void reactionExtraLook() {
+  // Quick glance L or R after Sparkle
+  if (random(2) == 0) {
+    drawNormalEyes(-10, false); delay(speedMs(280));
+  } else {
+    drawNormalEyes( 10, false); delay(speedMs(280));
+  }
+  drawNormalEyes(0, false);
+}
+
+void reactionExtraZ() {
+  // One more Z after Sleepy
+  drawSleepyEyes(6, 0);
+  delay(speedMs(500));
+  drawSleepyEyes(6, 1);
+  delay(speedMs(500));
+  drawSleepyEyes(6, 2);
+}
+
 #endif // DYNAMICS_H
