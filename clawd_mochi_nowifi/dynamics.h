@@ -315,4 +315,60 @@ void playEasterEgg() {
   }
 }
 
+// ── Easter egg implementations ─────────────────────────────────
+extern void drawHeartEyes(float scale);
+extern void drawNormalEyes(int16_t ox, bool blink);
+extern void drawSurpriseEyes();  // defined in main .ino (Task 10)
+extern int  speedMs(int ms);
+
+void eggZoom() {
+  // Eyes grow to 1.5× then shrink to 0.5× then back
+  // Use heart-eye as proxy (it accepts scale parameter)
+  for (int s = 10; s <= 15; s++) {
+    drawHeartEyes(s / 10.0); delay(speedMs(40));
+  }
+  drawHeartEyes(1.5); delay(speedMs(120));
+  drawHeartEyes(0.5); delay(speedMs(120));
+  drawHeartEyes(1.0); delay(speedMs(120));
+}
+
+extern void animNormalEyes();
+extern void animSquishEyes();
+extern void animHeartEyes();
+extern void animSparkleEyes();
+extern void animWink();
+extern void animSleepy();
+
+void eggDance() {
+  // All 6 expressions rapid-fire
+  animNormalEyes();
+  animSquishEyes();
+  animHeartEyes();
+  animSparkleEyes();
+  animWink();
+  animSleepy();
+}
+
+void eggFlash() {
+  // Background flashes through 3 colors
+  extern uint16_t animBgColor;
+  extern uint16_t C_ORANGE, C_WHITE, C_BLACK;
+  uint16_t saved = animBgColor;
+  for (uint8_t i = 0; i < 3; i++) {
+    animBgColor = C_WHITE; animNormalEyes(0, false); delay(speedMs(120));
+    animBgColor = C_BLACK; animNormalEyes(0, false); delay(speedMs(120));
+    animBgColor = C_ORANGE; animNormalEyes(0, false); delay(speedMs(120));
+  }
+  animBgColor = saved;
+  animNormalEyes(0, false);
+}
+
+void eggSecret() {
+  // The 7th hidden expression: shocked face
+  drawSurpriseEyes();
+  delay(speedMs(800));
+  // Hold for a moment, then snap back to normal
+  animNormalEyes();
+}
+
 #endif // DYNAMICS_H
