@@ -99,8 +99,8 @@ bool     quipActive     = false;   // is a bubble currently on screen?
 bool     quipNeedsRedraw= false;   // eye animation fillScreen'd over us; redraw at end
 
 // Per-mood trigger probability (out of 100, evaluated per loop)
-// HYPER talks ~3x/loop, HAPPY ~6x/loop, CALM ~12x/loop, SLEEPY ~20x/loop
-const uint8_t SPEAK_PROB[4] = { 33, 17, 8, 5 };
+// Roughly 1 quip every 15-30s in HAPPY, faster in HYPER, slower in CALM/SLEEPY
+const uint8_t SPEAK_PROB[4] = { 45, 25, 15, 10 };
 
 // Cooldown between quips
 const uint32_t SPEAK_COOLDOWN_MS = 6000;
