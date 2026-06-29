@@ -258,4 +258,61 @@ void reactionExtraZ() {
   drawSleepyEyes(6, 2);
 }
 
+// ── Easter eggs ────────────────────────────────────────────────
+// Egg IDs: 0=ZOOM 1=DANCE 2=FLASH 3=SECRET
+struct EasterEggRule {
+  uint8_t eggId;
+  uint8_t probability[4];  // HYPER/HAPPY/CALM/SLEEPY (denominator = "1 in N")
+};
+
+const EasterEggRule EGGS[] = {
+  {0, {5,  8, 30, 0}},   // ZOOM
+  {1, {8, 20, 50, 0}},   // DANCE
+  {2, {10, 25, 60, 0}},  // FLASH
+  {3, {15, 30, 80, 0}},  // SECRET
+};
+const uint8_t EGGS_COUNT = sizeof(EGGS) / sizeof(EGGS[0]);
+
+// Forward declarations (defined in Task 9)
+void eggZoom();
+void eggDance();
+void eggFlash();
+void eggSecret();
+
+bool shouldEasterEgg() {
+  // Pick the most likely egg for this mood, return true if it fires
+  uint8_t bestDenom = 255;
+  for (uint8_t i = 0; i < EGGS_COUNT; i++) {
+    uint8_t d = EGGS[i].probability[currentMood];
+    if (d > 0 && d < bestDenom) bestDenom = d;
+  }
+  if (bestDenom == 255) return false;  // SLEEPY: no eggs
+  return random(bestDenom) == 0;
+}
+
+void playEasterEgg() {
+  // Re-roll which egg to play, weighted by per-egg probability
+  uint16_t total = 0;
+  for (uint8_t i = 0; i < EGGS_COUNT; i++) {
+    uint8_t d = EGGS[i].probability[currentMood];
+    if (d > 0) total += 255 / d;  // weight ∝ 1/denominator
+  }
+  if (total == 0) return;
+  uint16_t r = random(total);
+  for (uint8_t i = 0; i < EGGS_COUNT; i++) {
+    uint8_t d = EGGS[i].probability[currentMood];
+    if (d == 0) continue;
+    uint16_t w = 255 / d;
+    if (r < w) {
+      switch (EGGS[i].eggId) {
+        case 0: eggZoom();   return;
+        case 1: eggDance();  return;
+        case 2: eggFlash();  return;
+        case 3: eggSecret(); return;
+      }
+    }
+    r -= w;
+  }
+}
+
 #endif // DYNAMICS_H
