@@ -21,6 +21,7 @@
 #include <Adafruit_ST7789.h>
 #include <SPI.h>
 #include <math.h>
+#include "dynamics.h"
 
 // ── Pins ──────────────────────────────────────────────────────
 #define TFT_CS   4
@@ -386,22 +387,43 @@ void setup() {
   delay(1200);
 
   Serial.println("[BOOT] No-WiFi demo — cycling 6 expressions forever.");
+  setupDynamics();
 }
 
 // ═════════════════════════════════════════════════════════════
 //  LOOP
 // ═════════════════════════════════════════════════════════════
 
-uint8_t demoStep = 0;
 
 void loop() {
-  switch (demoStep) {
-    case DEMO_NORMAL:  demoNormal();  break;
-    case DEMO_SQUISH:  demoSquish();  break;
-    case DEMO_HEART:   demoHeart();   break;
-    case DEMO_SPARKLE: demoSparkle(); break;
-    case DEMO_WINK:    demoWink();    break;
-    case DEMO_SLEEPY:  demoSleepy();  break;
+  static uint8_t step = 0;
+  uint8_t lastDemo = step;
+
+  // 1. Mood check (may transition, which plays a quick "aha" animation)
+  updateMood();
+
+  // 2. Main expression
+  switch (lastDemo) {
+    case DEMO_NORMAL:  animNormalEyes();  break;
+    case DEMO_SQUISH:  animSquishEyes();  break;
+    case DEMO_HEART:   animHeartEyes();   break;
+    case DEMO_SPARKLE: animSparkleEyes(); break;
+    case DEMO_WINK:    animWink();        break;
+    case DEMO_SLEEPY:  animSleepy();      break;
   }
-  demoStep = (demoStep + 1) % DEMO_COUNT;
+
+  // 3. Reaction chain (~30-80% probability depending on trigger)
+  reactAfter(lastDemo);
+
+  // 4. Idle micro-animation (~60% probability)
+  if (random(100) < 60) {
+    playRandomIdle();
+  }
+
+  // 5. Easter egg (mood-dependent probability)
+  if (shouldEasterEgg()) {
+    playEasterEgg();
+  }
+
+  step = (step + 1) % DEMO_COUNT;
 }
