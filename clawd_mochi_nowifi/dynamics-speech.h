@@ -155,7 +155,7 @@ bool shouldExpireQuip() {
 
 // ── Draw a quip bubble at the bottom of the screen ───────────
 // Position: centered horizontally, ~30px from bottom
-// Style: dark fill + orange border + white text
+// Style: TRANSPARENT background + orange border + white text
 // Text rendering uses U8g2 chinese1 font (UTF-8 capable)
 void drawQuipBubble(const char* text) {
   if (!text || text[0] == '\0') return;
@@ -174,18 +174,19 @@ void drawQuipBubble(const char* text) {
   const int16_t boxX  = (240 - boxW) / 2;
   const int16_t boxY  = 200;  // bottom of screen, y=200..224
 
-  // Background panel (dark)
-  tft.fillRoundRect(boxX, boxY, boxW, boxH, 4, C_DARKBG);
-  // Orange border
+  // TRANSPARENT bubble: only the orange border, no background fill
   tft.drawRoundRect(boxX, boxY, boxW, boxH, 4, C_ORANGE);
 
-  // Text via U8g2 (transparent mode so dark bg shows through)
-  u8g2.setFontMode(0);                       // solid background
+  // Text via U8g2 — transparent font mode (no opaque background)
+  // IMPORTANT: call u8g2.u8g2.print() directly (NOT the bridge's print()).
+  // The bridge's print() goes through write() byte-by-byte, which breaks
+  // UTF-8 multi-byte handling for the chinese1 font. The native
+  // U8g2::print() processes the whole string and handles UTF-8 correctly.
+  u8g2.setFontMode(1);                       // 1 = transparent background
   u8g2.setForegroundColor(C_WHITE);
-  u8g2.setBackgroundColor(C_DARKBG);
   // Cursor: y is baseline, so y = boxY + 4 + 16 = 220
   u8g2.setCursor(boxX + padX, boxY + padY + 16);
-  u8g2.print(text);
+  u8g2.u8g2.print(text);                     // bypass bridge print, use native UTF-8
 }
 
 // ── Show a quip (call once per trigger) ──────────────────────
