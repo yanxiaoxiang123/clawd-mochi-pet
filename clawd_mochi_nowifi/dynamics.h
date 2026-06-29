@@ -350,14 +350,18 @@ void eggDance() {
 }
 
 void eggFlash() {
-  // Background flashes through 3 colors
+  // Background flashes through white → black → orange × 3
+  // (Can't use C_WHITE/C_BLACK macros here — they're #defines,
+  //  not variables, so extern declarations break.)
   extern uint16_t animBgColor;
-  extern uint16_t C_ORANGE, C_WHITE, C_BLACK;
+  extern uint16_t C_ORANGE;
+  const uint16_t FLASH_WHITE = 0xFFFF;  // ST77XX_WHITE
+  const uint16_t FLASH_BLACK = 0x0000;  // ST77XX_BLACK
   uint16_t saved = animBgColor;
   for (uint8_t i = 0; i < 3; i++) {
-    animBgColor = C_WHITE; drawNormalEyes(0, false); delay(speedMs(120));
-    animBgColor = C_BLACK; drawNormalEyes(0, false); delay(speedMs(120));
-    animBgColor = C_ORANGE; drawNormalEyes(0, false); delay(speedMs(120));
+    animBgColor = FLASH_WHITE; drawNormalEyes(0, false); delay(speedMs(120));
+    animBgColor = FLASH_BLACK; drawNormalEyes(0, false); delay(speedMs(120));
+    animBgColor = C_ORANGE;    drawNormalEyes(0, false); delay(speedMs(120));
   }
   animBgColor = saved;
   drawNormalEyes(0, false);
