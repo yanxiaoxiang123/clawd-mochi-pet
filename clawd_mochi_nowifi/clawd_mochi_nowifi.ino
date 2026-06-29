@@ -56,6 +56,7 @@ uint16_t C_ORANGE, C_DARKBG, C_MUTED, C_GREEN;
 #define DEMO_COUNT   6
 
 #include "dynamics.h"
+#include "dynamics-speech.h"
 
 uint16_t animBgColor = 0;
 uint16_t drawBgColor = 0;
@@ -389,6 +390,7 @@ void setup() {
 
   Serial.println("[BOOT] No-WiFi demo — cycling 6 expressions forever.");
   setupDynamics();
+  setupSpeech();
 }
 
 // ═════════════════════════════════════════════════════════════
@@ -399,6 +401,9 @@ void setup() {
 void loop() {
   static uint8_t step = 0;
   uint8_t lastDemo = step;
+
+  // 0. Clear any leftover speech bubble from the previous loop
+  clearQuipArea();
 
   // 1. Mood check (may transition, which plays a quick "aha" animation)
   updateMood();
@@ -424,6 +429,11 @@ void loop() {
   // 5. Easter egg (mood-dependent probability)
   if (shouldEasterEgg()) {
     playEasterEgg();
+  }
+
+  // 6. Random speech bubble (mood-dependent probability, with 8s cooldown)
+  if (shouldSpeak()) {
+    showQuip(pickQuip());
   }
 
   step = (step + 1) % DEMO_COUNT;
