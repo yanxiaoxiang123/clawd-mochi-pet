@@ -187,18 +187,6 @@ void drawQuipBubble(const char* text) {
   u8g2.setCursor(boxX + padX, boxY + padY + 16);
   u8g2.print(text);
 }
-  tft.fillRoundRect(boxX, boxY, boxW, boxH, 4, C_DARKBG);
-  // Orange border
-  tft.drawRoundRect(boxX, boxY, boxW, boxH, 4, C_ORANGE);
-
-  // Text via U8g2 chinese1 font (UTF-8 capable)
-  u8g2.setFontMode(0);                       // solid background
-  u8g2.setForegroundColor(C_WHITE);
-  u8g2.setBackgroundColor(C_DARKBG);
-  // Cursor: y is baseline, so y = boxY + 4 + 16 = 220
-  u8g2.setCursor(boxX + padX, boxY + padY + 16);
-  u8g2.print(text);
-}
 
 // ── Show a quip (call once per trigger) ──────────────────────
 void showQuip(const char* text) {
