@@ -87,7 +87,9 @@ const uint8_t QUIPS_SLEEPY_N = sizeof(QUIPS_SLEEPY) / sizeof(QUIPS_SLEEPY[0]);
 
 // ── Speech state ─────────────────────────────────────────────
 uint8_t  quipSet        = 0;       // default quip set index (0-3), randomized at boot
-uint32_t lastQuipMs     = 0;       // millis() of last shown quip (for 8s cooldown)
+uint32_t lastQuipMs     = 0;       // millis() of last shown quip (for cooldown)
+uint32_t quipDrawnMs    = 0;       // when the current bubble was drawn (for expire)
+uint16_t quipDurationMs = 0;       // how long the current bubble should stay
 char     currentQuip[32] = "";     // currently-displayed quip text
 bool     quipActive     = false;   // is a bubble currently on screen?
 
@@ -95,14 +97,16 @@ bool     quipActive     = false;   // is a bubble currently on screen?
 // HYPER talks ~3x/loop, HAPPY ~6x/loop, CALM ~12x/loop, SLEEPY ~20x/loop
 const uint8_t SPEAK_PROB[4] = { 33, 17, 8, 5 };
 
-// 8 second minimum cooldown between quips (in ms)
-const uint32_t SPEAK_COOLDOWN_MS = 8000;
+// Cooldown between quips
+const uint32_t SPEAK_COOLDOWN_MS = 6000;
 
 // ── Setup ────────────────────────────────────────────────────
 void setupSpeech() {
   quipSet = random(4);  // pick a "voice" for this boot
-  lastQuipMs = millis() - 5000;  // allow first quip within 5s of boot
+  lastQuipMs = 0;       // allow first quip immediately
   quipActive = false;
+  quipDrawnMs = 0;
+  quipDurationMs = 0;
   currentQuip[0] = '\0';
 }
 
@@ -135,6 +139,12 @@ bool shouldSpeak() {
   if (quipActive) return false;  // one at a time
   if (millis() - lastQuipMs < SPEAK_COOLDOWN_MS) return false;
   return random(100) < SPEAK_PROB[(uint8_t)currentMood];
+}
+
+// ── Has the current bubble expired? (call from main loop) ─────
+bool shouldExpireQuip() {
+  if (!quipActive) return false;
+  return (millis() - quipDrawnMs) >= quipDurationMs;
 }
 
 // ── Draw a quip bubble at the bottom of the screen ───────────
@@ -172,17 +182,21 @@ void showQuip(const char* text) {
   if (!text) return;
   strncpy(currentQuip, text, sizeof(currentQuip) - 1);
   currentQuip[sizeof(currentQuip) - 1] = '\0';
-  lastQuipMs = millis();
-  quipActive = true;
+  // Duration: 1500ms base + 90ms per char
+  quipDurationMs = 1500 + strlen(text) * 90;
+  lastQuipMs     = millis();
+  quipDrawnMs    = millis();
+  quipActive     = true;
   drawQuipBubble(text);
 }
 
-// ── Clear the bubble area (call at top of loop, non-blocking) ─
+// ── Clear the bubble area (call only after shouldExpireQuip()) ─
 void clearQuipArea() {
   if (!quipActive) return;
   // Overdraw the bubble region with bg color
   tft.fillRect(0, 195, 240, 45, animBgColor);
   quipActive = false;
+  quipDurationMs = 0;
   currentQuip[0] = '\0';
 }
 

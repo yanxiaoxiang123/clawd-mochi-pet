@@ -402,8 +402,10 @@ void loop() {
   static uint8_t step = 0;
   uint8_t lastDemo = step;
 
-  // 0. Clear any leftover speech bubble from the previous loop
-  clearQuipArea();
+  // 0. Clear speech bubble only if it has expired (timing-based, not loop-based)
+  if (shouldExpireQuip()) {
+    clearQuipArea();
+  }
 
   // 1. Mood check (may transition, which plays a quick "aha" animation)
   updateMood();
