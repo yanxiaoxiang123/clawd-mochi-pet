@@ -3,13 +3,13 @@
   <img src="pics/clawd_mochi_banner.png" alt="Clawd Mochi Logo" width="700"/>
 </p>
 
-# Clawd Mochi 🦀🤖
+# Clawd Mochi Pet 🦀🤖💫
 
-A physical desk companion inspired by **Clawd** — the pixel-crab mascot of Claude Code by Anthropic. An ESP32-C3 drives a 1.54" color TFT display and hosts a mobile web controller — no app, no internet, no cloud required.
+**A lively desk pet** inspired by **Clawd** — the pixel-crab mascot of Claude Code by Anthropic. An ESP32-C3 drives a 1.54" color TFT display and runs a self-contained personality system that drifts through moods, blinks, glances, reacts, and surprises — no WiFi, no app, no cloud, no buttons.
+
+> 🔀 **This is a fork of [yousifamanuel/clawd-mochi](https://github.com/yousifamanuel/clawd-mochi)** that replaces the WiFi web controller with a **lively pet dynamic system** that runs entirely on the device.
 
 **Cost: ~$6–8 · Build time: ~1 hour · Skill level: Beginner**
-
-Support the project on Instagram: [![Instagram](https://img.shields.io/badge/Instagram-E4405F?logo=instagram&logoColor=fff&style=for-the-badge)](https://instagram.com/clawd.mochi)
 
 📦 3D printable case on MakerWorld: [https://makerworld.com/en/models/2559505-clawd-mochi-physical-claude-code-mascot#profileId-2820000](https://makerworld.com/en/models/2559505-clawd-mochi-physical-claude-code-mascot#profileId-2820000)
 
@@ -19,20 +19,46 @@ Support the project on Instagram: [![Instagram](https://img.shields.io/badge/Ins
 
 ---
 
-<p align="center">
-  <img src="pics/clawd_mochi_3_4.jpeg" alt="Assembled Clawd Mochi on a desk" width="500"/>
-  &nbsp;
-  <img src="pics/clawd_mochi_claude_code.jpeg" alt="Claude Code view" width="500"/>
-</p>
-
 ## What it does
 
-Clawd Mochi sits on your desk and shows animated expressions on a small color display. You control it from any phone or browser by connecting to its built-in WiFi hotspot:
+Clawd Mochi sits on your desk and **lives** on a small color display. Plug it in, and the pet wakes up **hyper**, then over time drifts through moods — **happy → calm → sleepy** — making it feel like a small creature that responds to the world around it.
 
-- **Normal eyes** — pixel-art square eyes with wiggle and blink animations
-- **Squish eyes** — `> <` happy squint with open/close animation
-- **Claude Code** — displays "Claude Code" with an interactive terminal
-- **Canvas** — draw anything on the display from your phone in real time
+### 6 main expressions
+
+| # | Expression | What it looks like |
+|---|------------|-------------------|
+| 0 | Normal eyes | Pixel-art square eyes with wiggle and blink |
+| 1 | Squish eyes | `> <` happy squint, opens and closes |
+| 2 | Heart eyes | Pulsing hearts that grow and shrink |
+| 3 | Sparkle eyes | Star-shaped eyes with rotation |
+| 4 | Wink | One eye closes, then opens with sparkle |
+| 5 | Sleepy | Half-closed eyes with a floating Z |
+
+### 4 layered behavior systems (the pet part)
+
+These run automatically on top of the main expressions:
+
+| System | What it does |
+|--------|--------------|
+| **🧠 Mood** | Time-since-boot: HYPER (0–30s) → HAPPY (30s–3min) → CALM (3–15min) → SLEEPY (15min+). Mood changes are visible — animation speed and idle frequency shift. |
+| **👀 Idle micro-animations** | Random blinks, glances (L/R/up), breath pulses, and shivers between main expressions. The pool is **weighted by mood** — HYPER pet glances around a lot; SLEEPY pet just shivers. |
+| **⚡ Reaction chains** | After a main expression, there's a 40–80% chance of a follow-up: Wink → often Sparkle; Sparkle → often an extra glance; Sleepy → often one more Z floats up. |
+| **🥚 Easter eggs** | 4 rare surprise animations fire at mood-dependent rates: **ZOOM** (eyes pulse huge then tiny), **DANCE** (all 6 expressions rapid-fire), **FLASH** (background strobes), **SECRET** (a 7th hidden shocked face `⊙⊙`). |
+
+---
+
+## What's different from the original
+
+| | Original (`yousifamanuel/clawd-mochi`) | This fork |
+|---|---|---|
+| Control | WiFi hotspot + phone browser | **No WiFi** — fully autonomous |
+| Expressions | 4 (Normal, Squish, Claude Code, Canvas) | **6 + 1 hidden** (Normal, Squish, Heart, Sparkle, Wink, Sleepy, +Surprise in easter egg) |
+| Behavior | Static user-triggered | **4 layered systems** (mood, idle, reactions, easter eggs) |
+| Sketch size | 1087 lines (single .ino) | 428 lines (.ino) + 373 lines (dynamics.h) |
+| Web controller | Yes | **Removed** |
+| Hardware pinout | Identical | Identical |
+
+**Same hardware, same wiring, same 3D case — just a different sketch.**
 
 ---
 
@@ -40,7 +66,7 @@ Clawd Mochi sits on your desk and shows animated expressions on a small color di
 
 | Part                | Spec                             | ~Price |
 | ------------------- | -------------------------------- | ------ |
-| ESP32-C3 Super Mini | microcontroller with WiFi        | ~$2.50 |
+| ESP32-C3 Super Mini | microcontroller                  | ~$2.50 |
 | ST7789 1.54" TFT    | 240×240 SPI color display        | ~$3.00 |
 | 8 short wires       | 8–10 cm Dupont / jumper wires    | ~$0.50 |
 | 2× M2×6mm screws    | to mount display bezel           | ~$0.10 |
@@ -82,7 +108,7 @@ Download [Arduino IDE 2.x](https://www.arduino.cc/en/software) and install it.
    ```
    https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
    ```
-3. Go to **Tools → Board → Boards Manager**, search `esp32`, install **"esp32 by Espressif Systems"**
+3. Go to **Tools → Board → Boards Manager**, search `esp32`, install **"esp32 by Espressif Systems"** (3.3.x)
 
 ### Step 3 — Install libraries
 
@@ -105,53 +131,41 @@ Go to **Tools** and set:
 ### Step 5 — Upload the sketch
 
 1. Clone or download this repo
-2. Open `clawd_mochi/clawd_mochi.ino` in Arduino IDE
+2. Open **`clawd_mochi_nowifi/clawd_mochi_nowifi.ino`** in Arduino IDE (the .h file is in the same folder and will be auto-included)
 3. Connect the ESP32 via USB-C
 4. Select the correct port under **Tools → Port**
 5. Click **Upload** (→ arrow button)
 6. Wait for "Hard resetting via RTS pin..." — this means success
+7. **Unplug and replug the USB** — this restarts the ESP32 so the pet wakes up fresh
 
 ---
 
 ## How to use it
 
-### Connect and open the controller
+### Just plug it in
+
+That's it. No phone, no WiFi, no buttons. The pet runs itself.
 
 1. Power the ESP32 via USB-C (any USB charger or power bank)
-2. Wait ~3 seconds for the boot animation to finish
-3. On your phone or computer, go to **WiFi settings**
-4. Connect to the network: **`ClaWD-Mochi`** · password: **`clawd1234`**
-5. Open a browser and go to **`http://192.168.4.1`**
+2. Wait ~2 seconds for the first expression to appear
+3. Watch it live
 
-You should see the web controller:
+### What you'll see
 
-<img src="pics/clawd_mochi_webpage.jpeg" alt="Webpage view" width="500"/>
+| Time since boot | Mood | Behavior |
+|-----------------|------|----------|
+| 0 – 30 s | 🟠 HYPER | Fast expressions, lots of easter eggs, eyes darting around |
+| 30 s – 3 min | 🟡 HAPPY | Standard pace, normal idle mix, occasional reactions |
+| 3 – 15 min | 🟢 CALM | Slower, more breath and blink idles, rarer easter eggs |
+| 15 min+ | 🔵 SLEEPY | Very slow, shiver replaces glances, no easter eggs |
 
-### Controller features
-
-| Button / control   | What it does                                    |
-| ------------------ | ----------------------------------------------- |
-| Normal eyes        | Plays wiggle + blink animation                  |
-| Squish eyes        | Plays open/close animation                      |
-| Claude Code        | Shows code display, opens terminal              |
-| Canvas             | Enter drawing mode — draw on display from phone |
-| Speed slider       | Controls animation speed (slow / normal / fast) |
-| Background color   | Changes background color of all views           |
-| Pen color          | Sets drawing color for canvas                   |
-| Display on/off     | Toggles the backlight                           |
-| ✓ done (in canvas) | Exits canvas mode                               |
+**Tip:** if you want to "reset" the pet to HYPER, just unplug and replug the USB.
 
 ---
 
 ## 3D case
 
-The electronics case (body + back) is in the `clawd_mochi` model folder:
-
-| File                                                                                 | Description                               |
-| ------------------------------------------------------------------------------------ | ----------------------------------------- |
-| [`./models/clawd_mochi/clawd_mochi_v1.stl`](./models/clawd_mochi/clawd_mochi_v1.stl) | Main case layout with body and back parts |
-
-### Print settings
+The electronics case is **identical** to the original project — see [`models/clawd_mochi/`](./models/clawd_mochi/) for the body and back plate STL files. Print settings:
 
 | Setting      | Value                               |
 | ------------ | ----------------------------------- |
@@ -165,80 +179,87 @@ Suggested colors: orange PLA for body, matte black for back plate.
 
 You can also download the models from MakerWorld: [https://makerworld.com/en/models/2559505-clawd-mochi-physical-claude-code-mascot#profileId-2820000](https://makerworld.com/en/models/2559505-clawd-mochi-physical-claude-code-mascot#profileId-2820000)
 
-### 3D Clawd (no electronics)
-
-If you just want a display piece, use the separate 3D Clawd model (no screen or electronics cutouts).
-
-<img src="pics/clawd_3D_squished_eyes_4_3.png" alt="3D printed Clawd model with squished eyes" width="500"/>
-
-Model files:
-
-| File | Description |
-| ---- | ----------- |
-| [`./models/clawd_3d/clawd_3D_no_AMS.stl`](./models/clawd_3d/clawd_3D_no_AMS.stl) | Original Clawd 3D model |
-| [`./models/clawd_3d_squished_eyes/clawd_3D_squished_eyes_no_AMS.stl`](./models/clawd_3d_squished_eyes/clawd_3D_squished_eyes_no_AMS.stl) | Squished eyes variant |
-
-You can also download the models from MakerWorld: [https://makerworld.com/en/models/2576503-clawd-claude-code-mascot#profileId-2841183](https://makerworld.com/en/models/2576503-clawd-claude-code-mascot#profileId-2841183)
-
 ---
 
-## Assembly tips
+## Project structure
 
-1. Print the case file (body + back) and test-fit the display before gluing anything
-2. Thread the 8 wires through the back plate slot before soldering
-3. Use double-sided tape to fix the ESP32 against the inside of the back plate
-4. Secure the display with 2× M2×6mm screws through the bezel holes
-5. Route the USB-C cable through the back plate slot and snap the back on
+```
+clawd-mochi-pet/
+├── clawd_mochi_nowifi/           ← 📌 upload this folder
+│   ├── clawd_mochi_nowifi.ino    ← main sketch (6 expressions, loop scheduler)
+│   └── dynamics.h                ← mood + idle + reactions + easter eggs
+├── models/                       ← 3D-printable cases (from original)
+├── pics/                         ← reference photos (from original)
+├── docs/
+│   └── superpowers/
+│       ├── specs/                ← design docs
+│       │   └── 2026-06-29-clawd-mochi-dynamics-design.md
+│       └── plans/                ← implementation plans
+│           └── 2026-06-29-clawd-mochi-dynamics.md
+├── README.md
+└── LICENSE
+```
 
 ---
 
 ## Customisation
 
-### Eye size and position
+All tunables are in `clawd_mochi_nowifi/dynamics.h` (top of the file):
 
-Edit these constants near the top of `clawd_mochi.ino`:
+| Want to change | Edit |
+|----------------|------|
+| Mood transition timing | `MOOD_HYPER_END_MS` / `MOOD_HAPPY_END_MS` / `MOOD_CALM_END_MS` |
+| Easter egg frequency | `EGGS[]` probability array per mood |
+| Idle frequency | `loop()` `if (random(100) < 60)` |
+| Reaction probability | `REACTIONS[]` probability field |
+| Idle pool bias | `IDLE_WEIGHTS_*[]` arrays |
+| 7th secret face | `drawSurpriseEyes()` body in the .ino |
 
-```cpp
-#define EYE_W   30    // eye width in pixels
-#define EYE_H   60    // eye height in pixels
-#define EYE_GAP 120   // gap between eyes
-#define EYE_OX  0     // horizontal offset
-#define EYE_OY  40    // vertical offset upward
+Want to disable easter eggs entirely? Set all of `EGGS[i].probability[mood]` to 0.
+
+---
+
+## How the dynamic system works
+
+```
+loop() does this every iteration:
+  1. updateMood()        // check if HYPER→HAPPY→CALM→SLEEPY transition
+  2. main expression     // one of 6 animXxxEyes() (~4s)
+  3. reactAfter()        // 40-80% chance, append reaction (~1-2s)
+  4. playRandomIdle()    // 60% chance, append micro-animation (~0.5-1s)
+  5. playEasterEgg()     // mood-gated, append surprise (~1.5-2.5s)
+  6. advance step
 ```
 
-### Logo animation duration
-
-```cpp
-// In animLogoReveal() — how long logo holds after animation
-delay(1500);       // milliseconds — change this number
-
-// Speed of the reveal drawing stroke by stroke
-delay(speedMs(8)); // lower = faster
-```
+Total loop length: 4-9 seconds depending on mood. See [the design spec](docs/superpowers/specs/2026-06-29-clawd-mochi-dynamics-design.md) for the full data structures and probabilities.
 
 ---
 
 ## Contributing
 
-Contributions are very welcome! Here are some ideas:
+Contributions welcome! Ideas:
 
-- **New animations** — add new expressions, transitions, or idle behaviors
-- **New views** — weather display, clock, notification badges, pixel art scenes
-- **Sound** — add a small buzzer for sound effects
-- **Sensors** — connect a touch sensor or button for physical interaction
-- **OTA updates** — add over-the-air firmware updates
-- **MQTT / Home Assistant** — connect to smart home platforms
+- **More expressions** — add new `animXxxEyes()` functions
+- **More idle behaviors** — yawn, stretch, look-around patterns
+- **More easter eggs** — add a new function and a new entry in `EGGS[]`
+- **Physical interaction** — add a button to pet/tickle the crab
+- **Persistence** — remember mood across reboots with NVS
+- **Battery + deep sleep** — make it truly portable
 
-To contribute: fork the repo, make your changes, and open a pull request. Please keep the single-file structure (`clawd_mochi.ino`) so it stays easy for beginners to flash.
+To contribute: fork this repo, make your changes, open a pull request.
+
+---
 
 ## License
 
 This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
-**Note:** 3D models and media assets are licensed under **CC BY-NC-SA 4.0**.
+**Note:** 3D models and media assets are licensed under **CC BY-NC-SA 4.0** (inherited from the original project).
 
 ---
 
-## Star History
+## Credits
 
-[![Star History Chart](https://api.star-history.com/svg?repos=yousifamanuel/clawd-mochi)](https://www.star-history.com/#yousifamanuel/clawd-mochi)
+- Original project: [yousifamanuel/clawd-mochi](https://github.com/yousifamanuel/clawd-mochi) — hardware design, base sketch, 3D models
+- Lively pet dynamics: added in this fork (2026-06-29)
+- Design + plan docs in `docs/superpowers/`
