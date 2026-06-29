@@ -97,7 +97,8 @@ inline int16_t eyeCY()           { return eyeY() + EYE_H / 2; }
 // ═════════════════════════════════════════════════════════════
 
 void drawNormalEyes(int16_t ox = 0, bool blink = false) {
-  tft.fillScreen(animBgColor);
+  // Note: only clear eye area (y < 195), not the speech bubble at y >= 200
+  tft.fillRect(0, 0, DISP_W, 195, animBgColor);
   const int16_t lx = eyeLX(ox), rx = eyeRX(ox), ey = eyeY();
   if (!blink) {
     tft.fillRect(lx, ey, EYE_W, EYE_H, C_BLACK);
@@ -126,7 +127,7 @@ void drawChevron(int16_t cx, int16_t cy, int16_t arm, int16_t reach,
 }
 
 void drawSquishEyes(bool closed = false) {
-  tft.fillScreen(animBgColor);
+  tft.fillRect(0, 0, DISP_W, 195, animBgColor);
   const int16_t lx = eyeLX(0), rx = eyeRX(0), cy = eyeCY();
   const int16_t arm   = EYE_H / 2;
   const int16_t reach = EYE_W / 2;
@@ -163,7 +164,7 @@ void drawHeartEyeAt(int16_t cx, int16_t cy, uint16_t col, float scale) {
 }
 
 void drawHeartEyes(float scale) {
-  tft.fillScreen(animBgColor);
+  tft.fillRect(0, 0, DISP_W, 195, animBgColor);
   drawHeartEyeAt(eyeLX(0) + EYE_W / 2, eyeCY(), C_BLACK, scale);
   drawHeartEyeAt(eyeRX(0) + EYE_W / 2, eyeCY(), C_BLACK, scale);
 }
@@ -198,7 +199,7 @@ void drawSparkleAt(int16_t cx, int16_t cy, uint16_t col, float scale, bool rotat
 }
 
 void drawSparkleEyes(float scale, bool rotated) {
-  tft.fillScreen(animBgColor);
+  tft.fillRect(0, 0, DISP_W, 195, animBgColor);
   drawSparkleAt(eyeLX(0) + EYE_W / 2, eyeCY(), C_BLACK, scale, rotated);
   drawSparkleAt(eyeRX(0) + EYE_W / 2, eyeCY(), C_BLACK, scale, rotated);
 }
@@ -209,7 +210,7 @@ void drawSparkleEyes(float scale, bool rotated) {
 
 void drawWinkEyes(float progress) {
   // progress: 0 = both eyes normal, 1 = full wink
-  tft.fillScreen(animBgColor);
+  tft.fillRect(0, 0, DISP_W, 195, animBgColor);
   const int16_t lx = eyeLX(0), rx = eyeRX(0), cy = eyeCY();
   // Left eye shrinks from EYE_H to 6 as progress → 1
   int16_t leftH = (int16_t)roundf(EYE_H * (1.0 - progress));
@@ -246,7 +247,7 @@ void drawZAt(int16_t x, int16_t y, uint16_t col) {
 void drawSleepyEyes(int16_t eyeH, int8_t zFrame) {
   // eyeH = current eye-opening height (animates EYE_H → 6)
   // zFrame = -1 → no Z, 0/1/2 → which Z to draw at upper-right
-  tft.fillScreen(animBgColor);
+  tft.fillRect(0, 0, DISP_W, 195, animBgColor);
   const int16_t lx = eyeLX(0), rx = eyeRX(0), cy = eyeCY();
   tft.fillRect(lx, cy - eyeH / 2, EYE_W, eyeH, C_BLACK);
   tft.fillRect(rx, cy - eyeH / 2, EYE_W, eyeH, C_BLACK);
@@ -266,7 +267,7 @@ void drawSleepyEyes(int16_t eyeH, int8_t zFrame) {
 // ═════════════════════════════════════════════════════════════
 
 void drawSurpriseEyes() {
-  tft.fillScreen(animBgColor);
+  tft.fillRect(0, 0, DISP_W, 195, animBgColor);
   const int16_t lx = eyeLX(0) + EYE_W / 2;
   const int16_t rx = eyeRX(0) + EYE_W / 2;
   const int16_t cy = eyeCY();
