@@ -355,12 +355,12 @@ void eggFlash() {
   extern uint16_t C_ORANGE, C_WHITE, C_BLACK;
   uint16_t saved = animBgColor;
   for (uint8_t i = 0; i < 3; i++) {
-    animBgColor = C_WHITE; animNormalEyes(0, false); delay(speedMs(120));
-    animBgColor = C_BLACK; animNormalEyes(0, false); delay(speedMs(120));
-    animBgColor = C_ORANGE; animNormalEyes(0, false); delay(speedMs(120));
+    animBgColor = C_WHITE; drawNormalEyes(0, false); delay(speedMs(120));
+    animBgColor = C_BLACK; drawNormalEyes(0, false); delay(speedMs(120));
+    animBgColor = C_ORANGE; drawNormalEyes(0, false); delay(speedMs(120));
   }
   animBgColor = saved;
-  animNormalEyes(0, false);
+  drawNormalEyes(0, false);
 }
 
 void eggSecret() {

@@ -21,7 +21,6 @@
 #include <Adafruit_ST7789.h>
 #include <SPI.h>
 #include <math.h>
-#include "dynamics.h"
 
 // ── Pins ──────────────────────────────────────────────────────
 #define TFT_CS   4
@@ -55,6 +54,8 @@ uint16_t C_ORANGE, C_DARKBG, C_MUTED, C_GREEN;
 #define DEMO_WINK    4
 #define DEMO_SLEEPY  5
 #define DEMO_COUNT   6
+
+#include "dynamics.h"
 
 uint16_t animBgColor = 0;
 uint16_t drawBgColor = 0;
