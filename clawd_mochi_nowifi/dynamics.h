@@ -176,4 +176,48 @@ void playRandomIdle() {
   }
 }
 
+// ── Reactions ──────────────────────────────────────────────────
+// Reaction types: 0=sparkle 1=heart_pulse 2=extra_look 3=extra_z
+struct ReactionRule {
+  uint8_t triggerDemo;
+  uint8_t probability;  // 0-100
+  uint8_t reactionType;
+};
+
+// NOTE: DEMO_NORMAL..DEMO_SLEEPY constants are #defined in
+// clawd_mochi_nowifi.ino (the main sketch). They are visible
+// to this header because the .ino #includes "dynamics.h"
+// AFTER those #defines.
+
+const ReactionRule REACTIONS[] = {
+  {DEMO_WINK,    50, 0},
+  {DEMO_HEART,   40, 1},
+  {DEMO_SPARKLE, 60, 2},
+  {DEMO_SLEEPY,  80, 3},
+};
+const uint8_t REACTIONS_COUNT = sizeof(REACTIONS) / sizeof(REACTIONS[0]);
+
+// Forward-declare reaction implementations (defined in Task 7)
+void reactionSparkle();
+void reactionHeartPulse();
+void reactionExtraLook();
+void reactionExtraZ();
+
+void reactAfter(uint8_t lastDemo) {
+  for (uint8_t i = 0; i < REACTIONS_COUNT; i++) {
+    const ReactionRule& r = REACTIONS[i];
+    if (r.triggerDemo == lastDemo) {
+      if (random(100) < r.probability) {
+        switch (r.reactionType) {
+          case 0: reactionSparkle();    break;
+          case 1: reactionHeartPulse(); break;
+          case 2: reactionExtraLook();  break;
+          case 3: reactionExtraZ();     break;
+        }
+      }
+      return;  // only one reaction per main expression
+    }
+  }
+}
+
 #endif // DYNAMICS_H
