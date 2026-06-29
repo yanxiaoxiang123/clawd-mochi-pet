@@ -17,7 +17,6 @@
 #define DYNAMICS_SPEECH_H
 
 #include <Arduino.h>
-#include <U8g2lib.h>          // Brings in u8g2_DrawUTF8() C function declaration
 #include <U8g2_for_Adafruit_GFX.h>
 
 // u8g2 instance defined in main sketch (initialized after tft)
@@ -179,16 +178,37 @@ void drawQuipBubble(const char* text) {
   tft.drawRoundRect(boxX, boxY, boxW, boxH, 4, C_ORANGE);
 
   // Text via U8g2 — transparent font mode (no opaque background)
-  // IMPORTANT: call u8g2_DrawUTF8() C function directly, NOT the bridge's
-  // print() / write(). The bridge's write() calls setCursor() before each
-  // byte, which resets U8g2's internal UTF-8 multi-byte accumulator, so
-  // only the first byte of a 3-byte Chinese char is rendered. The C
-  // function processes the whole string atomically and handles UTF-8.
+  // The bridge U8G2_FOR_ADAFRUIT_GFX has NO u8g2_DrawUTF8 function (only
+  // single-byte drawStr). We must decode UTF-8 to Unicode codepoints
+  // manually and call drawGlyph(x, y, codepoint) per char.
   u8g2.setFontMode(1);                       // 1 = transparent background
   u8g2.setForegroundColor(C_WHITE);
-  // Cursor: y is baseline, so y = boxY + 4 + 16 = 220
-  u8g2.setCursor(boxX + padX, boxY + padY + 16);
-  u8g2_DrawUTF8(&u8g2.u8g2, boxX + padX, boxY + padY + 16, (char*)text);
+
+  int16_t tx = boxX + padX;
+  int16_t ty = boxY + padY + 16;             // baseline
+  const uint8_t* p = (const uint8_t*)text;
+  while (*p) {
+    uint16_t cp = 0;
+    uint8_t c = *p++;
+    if (c < 0x80) {
+      cp = c;                                // ASCII (1 byte)
+    } else if ((c & 0xE0) == 0xC0) {
+      cp = (c & 0x1F) << 6;
+      cp |= (*p++ & 0x3F);                   // 2-byte UTF-8
+    } else if ((c & 0xF0) == 0xE0) {
+      cp = (c & 0x0F) << 12;
+      cp |= (*p++ & 0x3F) << 6;
+      cp |= (*p++ & 0x3F);                   // 3-byte UTF-8 (Chinese)
+    } else if ((c & 0xF8) == 0xF0) {
+      cp = (c & 0x07) << 18;
+      cp |= (*p++ & 0x3F) << 12;
+      cp |= (*p++ & 0x3F) << 6;
+      cp |= (*p++ & 0x3F);                   // 4-byte UTF-8
+    }
+    if (cp != 0) {
+      tx += u8g2.drawGlyph(tx, ty, cp);      // drawGlyph returns width
+    }
+  }
 }
 
 // ── Show a quip (call once per trigger) ──────────────────────
