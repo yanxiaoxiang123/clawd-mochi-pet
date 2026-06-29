@@ -134,4 +134,46 @@ void idleShiver() {
   drawNormalEyes(0, false);
 }
 
+// ── Idle weights per mood ──────────────────────────────────────
+// Index: 0=blink 1=lookL 2=lookR 3=lookUp 4=breathe 5=shiver
+const uint8_t IDLE_WEIGHTS_HYPER[]   = {20, 30, 30, 10,  5,  5};
+const uint8_t IDLE_WEIGHTS_HAPPY[]   = {30, 20, 20,  5, 15, 10};
+const uint8_t IDLE_WEIGHTS_CALM[]    = {35, 10, 10,  5, 30, 10};
+const uint8_t IDLE_WEIGHTS_SLEEPY[]  = {40,  0,  0,  0, 20, 40};
+
+const uint8_t* idleWeightsForMood(Mood m) {
+  switch (m) {
+    case MOOD_HYPER:  return IDLE_WEIGHTS_HYPER;
+    case MOOD_HAPPY:  return IDLE_WEIGHTS_HAPPY;
+    case MOOD_CALM:   return IDLE_WEIGHTS_CALM;
+    case MOOD_SLEEPY: return IDLE_WEIGHTS_SLEEPY;
+    default:          return IDLE_WEIGHTS_HAPPY;
+  }
+}
+
+int weightedPick(const uint8_t* weights, int n) {
+  uint16_t total = 0;
+  for (int i = 0; i < n; i++) total += weights[i];
+  if (total == 0) return 0;
+  uint16_t r = random(total);
+  for (int i = 0; i < n; i++) {
+    if (r < weights[i]) return i;
+    r -= weights[i];
+  }
+  return n - 1;
+}
+
+void playRandomIdle() {
+  const uint8_t* w = idleWeightsForMood(currentMood);
+  int idx = weightedPick(w, 6);
+  switch (idx) {
+    case 0: idleBlink();     break;
+    case 1: idleLookLeft();  break;
+    case 2: idleLookRight(); break;
+    case 3: idleLookUp();    break;
+    case 4: idleBreathe();   break;
+    case 5: idleShiver();    break;
+  }
+}
+
 #endif // DYNAMICS_H
