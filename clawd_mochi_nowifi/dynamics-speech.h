@@ -92,6 +92,7 @@ uint32_t quipDrawnMs    = 0;       // when the current bubble was drawn (for exp
 uint16_t quipDurationMs = 0;       // how long the current bubble should stay
 char     currentQuip[32] = "";     // currently-displayed quip text
 bool     quipActive     = false;   // is a bubble currently on screen?
+bool     quipNeedsRedraw= false;   // eye animation fillScreen'd over us; redraw at end
 
 // Per-mood trigger probability (out of 100, evaluated per loop)
 // HYPER talks ~3x/loop, HAPPY ~6x/loop, CALM ~12x/loop, SLEEPY ~20x/loop
@@ -107,6 +108,7 @@ void setupSpeech() {
   quipActive = false;
   quipDrawnMs = 0;
   quipDurationMs = 0;
+  quipNeedsRedraw = false;
   currentQuip[0] = '\0';
 }
 
@@ -197,7 +199,16 @@ void clearQuipArea() {
   tft.fillRect(0, 195, 240, 45, animBgColor);
   quipActive = false;
   quipDurationMs = 0;
+  quipNeedsRedraw = false;
   currentQuip[0] = '\0';
+}
+
+// ── Re-draw the active bubble on top of whatever the eyes just drew ──
+// Call this AFTER any fillScreen() to restore the bubble.
+void redrawQuipIfActive() {
+  if (quipActive && currentQuip[0] != '\0') {
+    drawQuipBubble(currentQuip);
+  }
 }
 
 #endif // DYNAMICS_SPEECH_H

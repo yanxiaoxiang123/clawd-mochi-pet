@@ -419,21 +419,25 @@ void loop() {
     case DEMO_WINK:    animWink();        break;
     case DEMO_SLEEPY:  animSleepy();      break;
   }
+  redrawQuipIfActive();
 
   // 3. Reaction chain (~30-80% probability depending on trigger)
   reactAfter(lastDemo);
+  redrawQuipIfActive();
 
   // 4. Idle micro-animation (~60% probability)
   if (random(100) < 60) {
     playRandomIdle();
   }
+  redrawQuipIfActive();
 
   // 5. Easter egg (mood-dependent probability)
   if (shouldEasterEgg()) {
     playEasterEgg();
   }
+  redrawQuipIfActive();
 
-  // 6. Random speech bubble (mood-dependent probability, with 8s cooldown)
+  // 6. Random speech bubble (mood-dependent probability, with cooldown)
   if (shouldSpeak()) {
     showQuip(pickQuip());
   }
