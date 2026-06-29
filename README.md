@@ -34,7 +34,7 @@ Clawd Mochi sits on your desk and **lives** on a small color display. Plug it in
 | 4 | Wink | One eye closes, then opens with sparkle |
 | 5 | Sleepy | Half-closed eyes with a floating Z |
 
-### 4 layered behavior systems (the pet part)
+### 5 layered behavior systems (the pet part)
 
 These run automatically on top of the main expressions:
 
@@ -44,6 +44,7 @@ These run automatically on top of the main expressions:
 | **👀 Idle micro-animations** | Random blinks, glances (L/R/up), breath pulses, and shivers between main expressions. The pool is **weighted by mood** — HYPER pet glances around a lot; SLEEPY pet just shivers. |
 | **⚡ Reaction chains** | After a main expression, there's a 40–80% chance of a follow-up: Wink → often Sparkle; Sparkle → often an extra glance; Sleepy → often one more Z floats up. |
 | **🥚 Easter eggs** | 4 rare surprise animations fire at mood-dependent rates: **ZOOM** (eyes pulse huge then tiny), **DANCE** (all 6 expressions rapid-fire), **FLASH** (background strobes), **SECRET** (a 7th hidden shocked face `⊙⊙`). |
+| **💬 Random speech** | Mood-aware Chinese + English quips appear in a transparent bubble at the bottom of the screen. **吃了吗?**, **想你呀**, **zzz...** — text drifts with mood, with 80% probability tied to current mood and 20% to a boot-time randomized "voice". |
 
 ---
 
@@ -54,7 +55,7 @@ These run automatically on top of the main expressions:
 | Control | WiFi hotspot + phone browser | **No WiFi** — fully autonomous |
 | Expressions | 4 (Normal, Squish, Claude Code, Canvas) | **6 + 1 hidden** (Normal, Squish, Heart, Sparkle, Wink, Sleepy, +Surprise in easter egg) |
 | Behavior | Static user-triggered | **4 layered systems** (mood, idle, reactions, easter eggs) |
-| Sketch size | 1087 lines (single .ino) | 428 lines (.ino) + 373 lines (dynamics.h) |
+| Sketch size | 1087 lines (single .ino) | 428 lines (.ino) + 373 lines (dynamics.h) + 200 lines (dynamics-speech.h) |
 | Web controller | Yes | **Removed** |
 | Hardware pinout | Identical | Identical |
 
@@ -112,10 +113,14 @@ Download [Arduino IDE 2.x](https://www.arduino.cc/en/software) and install it.
 
 ### Step 3 — Install libraries
 
-Go to **Tools → Library Manager** and install both:
+Go to **Tools → Library Manager** and install all four:
 
 - `Adafruit GFX Library`
 - `Adafruit ST7735 and ST7789 Library`
+- `U8g2` (by olikraus) — for Chinese font rendering in speech bubbles
+- `U8g2_for_Adafruit_GFX` (by olikraus) — bridge between U8g2 fonts and Adafruit GFX
+
+> 💡 The U8g2 + U8g2_for_Adafruit_GFX libraries are only needed for the **random speech bubble** feature (Chinese text rendering). The 4 behavior systems (mood / idle / reactions / easter eggs) work without them.
 
 ### Step 4 — Configure board settings
 
@@ -154,12 +159,25 @@ That's it. No phone, no WiFi, no buttons. The pet runs itself.
 
 | Time since boot | Mood | Behavior |
 |-----------------|------|----------|
-| 0 – 30 s | 🟠 HYPER | Fast expressions, lots of easter eggs, eyes darting around |
-| 30 s – 3 min | 🟡 HAPPY | Standard pace, normal idle mix, occasional reactions |
-| 3 – 15 min | 🟢 CALM | Slower, more breath and blink idles, rarer easter eggs |
-| 15 min+ | 🔵 SLEEPY | Very slow, shiver replaces glances, no easter eggs |
+| 0 – 30 s | 🟠 HYPER | Fast expressions, lots of easter eggs, eyes darting around, frequent speech |
+| 30 s – 3 min | 🟡 HAPPY | Standard pace, normal idle mix, occasional reactions, regular speech |
+| 3 – 15 min | 🟢 CALM | Slower, more breath and blink idles, rarer easter eggs, gentler speech |
+| 15 min+ | 🔵 SLEEPY | Very slow, shiver replaces glances, no easter eggs, sleepy quips only |
 
 **Tip:** if you want to "reset" the pet to HYPER, just unplug and replug the USB.
+
+### Speech bubbles 💬
+
+Every few seconds (depending on mood — roughly every 15-30s in HAPPY), the pet will say something in a **transparent** bubble at the bottom of the screen — just an orange rounded-rectangle outline with white text floating on the background. Quips mix Chinese and English, drift with mood:
+
+- 🟠 HYPER: `Let's gooo!` `能量满满` `冲冲冲~`
+- 🟡 HAPPY: `吃了吗?` `想你呀` `摸鱼快乐~`
+- 🟢 CALM: `慢慢来~` `喝口水` `深呼吸...`
+- 🔵 SLEEPY: `zzz...` `好困呀` `(揉眼睛)`
+
+80% of the time the quip is from the current mood; 20% it's from a boot-time randomized "voice" so the pet feels different each power cycle. Add or edit quips in `dynamics-speech.h` (`QUIPS_HYPER[]`, `QUIPS_HAPPY[]`, `QUIPS_CALM[]`, `QUIPS_SLEEPY[]`).
+
+> 📝 The bubble is **non-blocking** and **transparent** — eye animations continue uninterrupted behind it. Chinese text is rendered via the U8g2 `unifont_t_chinese1` font (3,755 GB2312 level-1 characters). The `.ino` file uses a custom inline UTF-8 decoder to render multi-byte Chinese characters since the `U8G2_FOR_ADAFRUIT_GFX` bridge only exposes `drawGlyph` (single character).
 
 ---
 
@@ -186,8 +204,9 @@ You can also download the models from MakerWorld: [https://makerworld.com/en/mod
 ```
 clawd-mochi-pet/
 ├── clawd_mochi_nowifi/           ← 📌 upload this folder
-│   ├── clawd_mochi_nowifi.ino    ← main sketch (6 expressions, loop scheduler)
-│   └── dynamics.h                ← mood + idle + reactions + easter eggs
+│   ├── clawd_mochi_nowifi.ino    ← main sketch (6 expressions + loop scheduler)
+│   ├── dynamics.h                ← mood + idle + reactions + easter eggs
+│   └── dynamics-speech.h         ← 💬 random speech bubbles (Chinese + English)
 ├── models/                       ← 3D-printable cases (from original)
 ├── pics/                         ← reference photos (from original)
 ├── docs/
@@ -204,18 +223,25 @@ clawd-mochi-pet/
 
 ## Customisation
 
-All tunables are in `clawd_mochi_nowifi/dynamics.h` (top of the file):
+All tunables are in `clawd_mochi_nowifi/dynamics.h` and `clawd_mochi_nowifi/dynamics-speech.h` (top of each file):
 
-| Want to change | Edit |
+| Want to change | File / location |
 |----------------|------|
-| Mood transition timing | `MOOD_HYPER_END_MS` / `MOOD_HAPPY_END_MS` / `MOOD_CALM_END_MS` |
-| Easter egg frequency | `EGGS[]` probability array per mood |
-| Idle frequency | `loop()` `if (random(100) < 60)` |
-| Reaction probability | `REACTIONS[]` probability field |
-| Idle pool bias | `IDLE_WEIGHTS_*[]` arrays |
-| 7th secret face | `drawSurpriseEyes()` body in the .ino |
+| Mood transition timing | `dynamics.h` — `MOOD_HYPER_END_MS` / `MOOD_HAPPY_END_MS` / `MOOD_CALM_END_MS` |
+| Easter egg frequency | `dynamics.h` — `EGGS[]` probability array per mood |
+| Idle frequency | `.ino` loop() — `if (random(100) < 60)` |
+| Reaction probability | `dynamics.h` — `REACTIONS[]` probability field |
+| Idle pool bias | `dynamics.h` — `IDLE_WEIGHTS_*[]` arrays |
+| 7th secret face | `.ino` — `drawSurpriseEyes()` body |
+| Speech frequency | `dynamics-speech.h` — `SPEAK_PROB[4]` array (per mood) |
+| Speech minimum gap | `dynamics-speech.h` — `SPEAK_COOLDOWN_MS` |
+| Quip text / pool | `dynamics-speech.h` — `QUIPS_HYPER[]` / `QUIPS_HAPPY[]` / `QUIPS_CALM[]` / `QUIPS_SLEEPY[]` |
+| Speech bubble position | `dynamics-speech.h` — `boxY` constant |
+| Speech text color | `dynamics-speech.h` — `setForegroundColor(C_WHITE)` |
+| Speech border color | `dynamics-speech.h` — `tft.drawRoundRect(...)` color arg |
 
 Want to disable easter eggs entirely? Set all of `EGGS[i].probability[mood]` to 0.
+Want to disable speech entirely? Comment out step 6 in `loop()` (the `if (shouldSpeak())` block).
 
 ---
 
@@ -223,15 +249,19 @@ Want to disable easter eggs entirely? Set all of `EGGS[i].probability[mood]` to 
 
 ```
 loop() does this every iteration:
+  0. clearQuipArea()    // remove expired speech bubble
   1. updateMood()        // check if HYPER→HAPPY→CALM→SLEEPY transition
   2. main expression     // one of 6 animXxxEyes() (~4s)
   3. reactAfter()        // 40-80% chance, append reaction (~1-2s)
   4. playRandomIdle()    // 60% chance, append micro-animation (~0.5-1s)
   5. playEasterEgg()     // mood-gated, append surprise (~1.5-2.5s)
-  6. advance step
+  6. shouldSpeak()       // mood-gated, draw a Chinese/English quip bubble
+  7. advance step
 ```
 
 Total loop length: 4-9 seconds depending on mood. See [the design spec](docs/superpowers/specs/2026-06-29-clawd-mochi-dynamics-design.md) for the full data structures and probabilities.
+
+> 💡 Eye animations only clear the **y < 195** region (`tft.fillRect(0, 0, 240, 195, bg)`), so the speech bubble at y=200-228 is never wiped by the eyes. The bubble's lifetime is governed by `quipDrawnMs` + `quipDurationMs` (typically 1.5-3.5s), independent of loop cadence.
 
 ---
 
