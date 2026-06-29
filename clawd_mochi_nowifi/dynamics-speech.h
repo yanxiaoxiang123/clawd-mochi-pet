@@ -17,6 +17,7 @@
 #define DYNAMICS_SPEECH_H
 
 #include <Arduino.h>
+#include <U8g2lib.h>          // Brings in u8g2_DrawUTF8() C function declaration
 #include <U8g2_for_Adafruit_GFX.h>
 
 // u8g2 instance defined in main sketch (initialized after tft)
