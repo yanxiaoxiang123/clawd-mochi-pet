@@ -178,15 +178,16 @@ void drawQuipBubble(const char* text) {
   tft.drawRoundRect(boxX, boxY, boxW, boxH, 4, C_ORANGE);
 
   // Text via U8g2 — transparent font mode (no opaque background)
-  // IMPORTANT: call u8g2.u8g2.print() directly (NOT the bridge's print()).
-  // The bridge's print() goes through write() byte-by-byte, which breaks
-  // UTF-8 multi-byte handling for the chinese1 font. The native
-  // U8g2::print() processes the whole string and handles UTF-8 correctly.
+  // IMPORTANT: call u8g2_DrawUTF8() C function directly, NOT the bridge's
+  // print() / write(). The bridge's write() calls setCursor() before each
+  // byte, which resets U8g2's internal UTF-8 multi-byte accumulator, so
+  // only the first byte of a 3-byte Chinese char is rendered. The C
+  // function processes the whole string atomically and handles UTF-8.
   u8g2.setFontMode(1);                       // 1 = transparent background
   u8g2.setForegroundColor(C_WHITE);
   // Cursor: y is baseline, so y = boxY + 4 + 16 = 220
   u8g2.setCursor(boxX + padX, boxY + padY + 16);
-  u8g2.u8g2.print(text);                     // bypass bridge print, use native UTF-8
+  u8g2_DrawUTF8(&u8g2.u8g2, boxX + padX, boxY + padY + 16, (char*)text);
 }
 
 // ── Show a quip (call once per trigger) ──────────────────────
