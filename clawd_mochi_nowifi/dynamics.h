@@ -63,4 +63,27 @@ void reactAfter(uint8_t lastDemo);
 bool shouldEasterEgg();
 void playEasterEgg();
 
+// ── Lifecycle ──────────────────────────────────────────────────
+void setupDynamics() {
+  bootMs = millis();
+  lastMoodChangeMs = bootMs;
+  currentMood = MOOD_HYPER;
+  // animSpeed lives in the main .ino; declared extern there.
+  // The main sketch must set animSpeed = 3 in setup() before calling us.
+}
+
+void updateMood() {
+  Mood newMood = computeMood();
+  if (newMood != currentMood) {
+    currentMood = newMood;
+    lastMoodChangeMs = millis();
+    // Sync animation speed (animSpeed is a global in the main .ino)
+    extern uint8_t animSpeed;  // from clawd_mochi_nowifi.ino
+    animSpeed = moodSpeed(newMood);
+    // Tiny "aha" reaction: fast blink + bounce via existing animNormalEyes
+    extern void animNormalEyes();
+    animNormalEyes();
+  }
+}
+
 #endif // DYNAMICS_H
