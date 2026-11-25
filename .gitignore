@@ -19,7 +19,9 @@ desktop.ini
 *.swp
 *.swo
 
-# Logs and temp
+# Logs, Python cache and temp
+__pycache__/
+*.py[cod]
 *.log
 *.tmp
 *.bak

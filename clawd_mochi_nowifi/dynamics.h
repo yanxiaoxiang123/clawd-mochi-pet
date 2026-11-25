@@ -1,30 +1,43 @@
-// dynamics.h — Lively-pet behavior for Clawd Mochi (no-WiFi version)
-// Companion to clawd_mochi_nowifi.ino. See spec:
-// docs/superpowers/specs/2026-06-29-clawd-mochi-dynamics-design.md
+// dynamics.h — Natural Circadian/Nap Rhythm, Weighted 15-Expression Selector,
+//              Idle Micro-Animations, Reaction Chains & Easter Eggs.
 
 #ifndef DYNAMICS_H
 #define DYNAMICS_H
 
 #include <Arduino.h>
+#include "mochi_types.h"
 
-// Mood enum (defined here, used by main sketch too)
-enum Mood { MOOD_HYPER = 0, MOOD_HAPPY = 1, MOOD_CALM = 2, MOOD_SLEEPY = 3 };
-
-// Public state (set by setupDynamics, read by main sketch for debug)
-extern Mood      currentMood;
-extern uint32_t  bootMs;
-
-// ── Mood system ────────────────────────────────────────────────
-Mood     currentMood     = MOOD_HYPER;
-uint32_t bootMs          = 0;
+Mood     currentMood      = MOOD_HYPER;
+uint32_t bootMs           = 0;
+uint32_t cycleStartMs     = 0;  // resets each wake-up / pet / desk-return!
 uint32_t lastMoodChangeMs = 0;
+bool     wasDeepSleeping  = false;
 
-// Mood transition thresholds (ms since boot)
-const uint32_t MOOD_HYPER_END_MS   =  30000UL;  // 30 s
-const uint32_t MOOD_HAPPY_END_MS   = 180000UL;  // 3 min
-const uint32_t MOOD_CALM_END_MS    = 900000UL;  // 15 min
+// Natural cyclic rhythm (never permanently stuck in SLEEPY!):
+//   0 .. 45s       -> HYPER  (45s burst of energy)
+//   45s .. 4m45s   -> HAPPY  (4 min cheerful company)
+//   4m45s .. 15m   -> CALM   (10+ min gentle company)
+//   15m .. 18m     -> SLEEPY (3 min cozy power nap with dimmed backlight, then wakes up!)
+const uint32_t CYCLE_HYPER_END_MS  =   45000UL;  // 45 s
+const uint32_t CYCLE_HAPPY_END_MS  =  285000UL;  // 4 min 45 s
+const uint32_t CYCLE_CALM_END_MS   =  900000UL;  // 15 min
+const uint32_t CYCLE_NAP_END_MS    = 1080000UL;  // 18 min -> auto stretch & wake!
 
-// Animation speed multiplier per mood (1=slow, 2=normal, 3=fast)
+extern uint8_t animSpeed;
+extern void drawNormalEyes(int16_t ox, bool blink);
+extern void drawHeartEyes(float scale);
+extern void drawSleepyEyes(int16_t eyeH, int8_t zFrame);
+extern void drawSurpriseEyes();
+extern void animNormalEyes();
+extern void animSquishEyes();
+extern void animHeartEyes();
+extern void animSparkleEyes();
+extern void animWink();
+extern void animSleepy();
+extern void animHappyArcEyes();
+extern void animYawnStretch();
+extern int  speedMs(int ms);
+
 int moodSpeed(Mood m) {
   switch (m) {
     case MOOD_HYPER:  return 3;
@@ -35,122 +48,99 @@ int moodSpeed(Mood m) {
   }
 }
 
-Mood computeMood() {
-  uint32_t elapsed = millis() - bootMs;
-  if (elapsed < MOOD_HYPER_END_MS) return MOOD_HYPER;
-  if (elapsed < MOOD_HAPPY_END_MS) return MOOD_HAPPY;
-  if (elapsed < MOOD_CALM_END_MS)  return MOOD_CALM;
-  return MOOD_SLEEPY;
+uint8_t desiredBrightnessForState() {
+  if (!isOwnerPresent()) {
+    return 45;   // Owner away from desk -> low-power cozy rest glow
+  }
+  if (currentMood == MOOD_SLEEPY) {
+    return isLateNightHours() ? 45 : 85;  // Soft dimmed nap
+  }
+  if (isLateNightHours()) {
+    return 115;  // Gentle eye-care night mode when coding past 23:00
+  }
+  return 255;    // Full vibrant daytime brightness
 }
 
-// Lifecycle
-void setupDynamics();
-void updateMood();
+void energizeCycle(bool toHyper = true) {
+  cycleStartMs = toHyper ? millis() : (millis() - CYCLE_HYPER_END_MS);
+  currentMood  = toHyper ? MOOD_HYPER : MOOD_HAPPY;
+  animSpeed    = moodSpeed(currentMood);
+  setTargetBrightness(desiredBrightnessForState());
+}
 
-// Idle pool
-void playRandomIdle();
-void idleBlink();
-void idleLookLeft();
-void idleLookRight();
-void idleLookUp();
-void idleBreathe();
-void idleShiver();
-
-// Reactions
-void reactAfter(uint8_t lastDemo);
-
-// Easter eggs
-bool shouldEasterEgg();
-void playEasterEgg();
-
-// ── Lifecycle ──────────────────────────────────────────────────
 void setupDynamics() {
-  bootMs = millis();
+  bootMs           = millis();
+  cycleStartMs     = bootMs;
   lastMoodChangeMs = bootMs;
-  currentMood = MOOD_HYPER;
-  // animSpeed lives in the main .ino; declared extern there.
-  // The main sketch must set animSpeed = 3 in setup() before calling us.
+  currentMood      = MOOD_HYPER;
+  animSpeed        = 3;
+  setTargetBrightness(255);
 }
 
 void updateMood() {
-  Mood newMood = computeMood();
+  uint32_t now = millis();
+
+  // If owner has left the desk (>8 min), drift straight into restful sleep
+  if (!isOwnerPresent()) {
+    if (currentMood != MOOD_SLEEPY) {
+      currentMood      = MOOD_SLEEPY;
+      lastMoodChangeMs = now;
+      animSpeed        = 1;
+    }
+    wasDeepSleeping = true;
+    setTargetBrightness(desiredBrightnessForState());
+    return;
+  }
+
+  // Keep awake in HAPPY/CALM during active Pomodoro or AI thinking
+  if (pomoActive || aiActiveMode == AI_MODE_THINKING) {
+    if (currentMood == MOOD_SLEEPY) {
+      energizeCycle(false);
+    }
+    setTargetBrightness(desiredBrightnessForState());
+    return;
+  }
+
+  uint32_t elapsed = now - cycleStartMs;
+
+  // Finished 3-minute power nap -> stretch, yawn, restore brightness, and wake up fresh!
+  if (elapsed >= CYCLE_NAP_END_MS) {
+    // Late night (23:00-07:00) takes longer 8-min naps before checking in quietly
+    uint32_t napLimit = isLateNightHours() ? (CYCLE_CALM_END_MS + 480000UL) : CYCLE_NAP_END_MS;
+    if (elapsed >= napLimit) {
+      cycleStartMs     = now - CYCLE_HYPER_END_MS;  // Wake into HAPPY (not jarring HYPER)
+      currentMood      = isLateNightHours() ? MOOD_CALM : MOOD_HAPPY;
+      lastMoodChangeMs = now;
+      animSpeed        = moodSpeed(currentMood);
+      setTargetBrightness(desiredBrightnessForState());
+      animYawnStretch();
+      showQuip(isLateNightHours() ? "醒来陪你啦~" : "睡饱啦! 满血复活~", 3000);
+      return;
+    }
+  }
+
+  Mood newMood;
+  if (elapsed < CYCLE_HYPER_END_MS)      newMood = MOOD_HYPER;
+  else if (elapsed < CYCLE_HAPPY_END_MS) newMood = MOOD_HAPPY;
+  else if (elapsed < CYCLE_CALM_END_MS)  newMood = MOOD_CALM;
+  else                                   newMood = MOOD_SLEEPY;
+
   if (newMood != currentMood) {
-    currentMood = newMood;
-    lastMoodChangeMs = millis();
-    // Sync animation speed (animSpeed is a global in the main .ino)
-    extern uint8_t animSpeed;  // from clawd_mochi_nowifi.ino
-    animSpeed = moodSpeed(newMood);
-    // Tiny "aha" reaction: fast blink + bounce via existing animNormalEyes
-    extern void animNormalEyes();
-    animNormalEyes();
+    Mood prev        = currentMood;
+    currentMood      = newMood;
+    lastMoodChangeMs = now;
+    animSpeed        = moodSpeed(newMood);
+    setTargetBrightness(desiredBrightnessForState());
+    if (newMood == MOOD_SLEEPY && prev != MOOD_SLEEPY) {
+      animYawnStretch();
+      showQuip("有点困..眯三分钟~", 2800);
+    }
+  } else {
+    setTargetBrightness(desiredBrightnessForState());
   }
 }
 
-// ── Idle animations ───────────────────────────────────────────
-extern void drawNormalEyes(int16_t ox, bool blink);
-extern int  speedMs(int ms);  // from main sketch
-
-void idleBlink() {
-  drawNormalEyes(0, true);  delay(speedMs(80));
-  drawNormalEyes(0, false);
-}
-
-void idleLookLeft() {
-  drawNormalEyes(-14, false); delay(speedMs(500));
-  drawNormalEyes(-14, true);  delay(speedMs(60));
-  drawNormalEyes(0,   false);
-}
-
-void idleLookRight() {
-  drawNormalEyes(14, false);  delay(speedMs(500));
-  drawNormalEyes(14, true);   delay(speedMs(60));
-  drawNormalEyes(0,   false);
-}
-
-void idleLookUp() {
-  // Approximation: "looking up" via held gaze pattern
-  // (a true up-gaze would need a new draw function; this is a
-  //  close-enough substitute using blink-once-then-stare)
-  drawNormalEyes(0, false); delay(speedMs(400));
-  drawNormalEyes(0, true);  delay(speedMs(60));
-  drawNormalEyes(0, false);
-}
-
-void idleBreathe() {
-  // Subtle whole-face pulse: use normal eye at offset ±2
-  for (uint8_t i = 0; i < 4; i++) {
-    drawNormalEyes(-2, false); delay(speedMs(220));
-    drawNormalEyes( 2, false); delay(speedMs(220));
-  }
-  drawNormalEyes(0, false);
-}
-
-void idleShiver() {
-  // Fast jitter left-right
-  for (uint8_t i = 0; i < 6; i++) {
-    drawNormalEyes(-4, false); delay(speedMs(40));
-    drawNormalEyes( 4, false); delay(speedMs(40));
-  }
-  drawNormalEyes(0, false);
-}
-
-// ── Idle weights per mood ──────────────────────────────────────
-// Index: 0=blink 1=lookL 2=lookR 3=lookUp 4=breathe 5=shiver
-const uint8_t IDLE_WEIGHTS_HYPER[]   = {20, 30, 30, 10,  5,  5};
-const uint8_t IDLE_WEIGHTS_HAPPY[]   = {30, 20, 20,  5, 15, 10};
-const uint8_t IDLE_WEIGHTS_CALM[]    = {35, 10, 10,  5, 30, 10};
-const uint8_t IDLE_WEIGHTS_SLEEPY[]  = {40,  0,  0,  0, 20, 40};
-
-const uint8_t* idleWeightsForMood(Mood m) {
-  switch (m) {
-    case MOOD_HYPER:  return IDLE_WEIGHTS_HYPER;
-    case MOOD_HAPPY:  return IDLE_WEIGHTS_HAPPY;
-    case MOOD_CALM:   return IDLE_WEIGHTS_CALM;
-    case MOOD_SLEEPY: return IDLE_WEIGHTS_SLEEPY;
-    default:          return IDLE_WEIGHTS_HAPPY;
-  }
-}
-
+// ── Weighted pick helper ─────────────────────────────────────
 int weightedPick(const uint8_t* weights, int n) {
   uint16_t total = 0;
   for (int i = 0; i < n; i++) total += weights[i];
@@ -163,8 +153,92 @@ int weightedPick(const uint8_t* weights, int n) {
   return n - 1;
 }
 
+// ── Mood-Aware 15-Expression Selector ────────────────────────
+// Indices 0..14:
+//  0:Normal 1:Squish 2:Heart 3:Sparkle 4:Wink 5:Sleepy 6:Surprise
+//  7:HappyArc 8:Thinking 9:Angry 10:Dizzy 11:Cry 12:Curious 13:Yawn 14:Focus
+const uint8_t EXPR_WEIGHTS_HYPER[15]  = {16, 16, 12, 16, 12,  0, 4, 14,  2, 0, 0, 0,  8, 0, 0};
+const uint8_t EXPR_WEIGHTS_HAPPY[15]  = {22, 14, 10, 10, 12,  0, 0, 16,  5, 0, 0, 0,  8, 0, 3};
+const uint8_t EXPR_WEIGHTS_CALM[15]   = {28,  8,  5,  4,  8,  6, 0, 14, 10, 0, 0, 0, 10, 3, 4};
+const uint8_t EXPR_WEIGHTS_SLEEPY[15] = { 0,  0,  0,  0,  0, 88, 0,  0,  0, 0, 0, 0,  0,12, 0};
+
+uint8_t pickNextExpression(uint8_t lastExpr) {
+  if (aiActiveMode == AI_MODE_THINKING) {
+    const uint8_t aiPool[] = {DEMO_THINKING, DEMO_FOCUS, DEMO_CURIOUS, DEMO_THINKING};
+    return aiPool[random(4)];
+  }
+  if (pomoActive && currentMood != MOOD_SLEEPY && random(100) < 40) {
+    return (random(2) == 0) ? DEMO_FOCUS : DEMO_THINKING;
+  }
+
+  const uint8_t* w = EXPR_WEIGHTS_HAPPY;
+  switch (currentMood) {
+    case MOOD_HYPER:  w = EXPR_WEIGHTS_HYPER;  break;
+    case MOOD_HAPPY:  w = EXPR_WEIGHTS_HAPPY;  break;
+    case MOOD_CALM:   w = EXPR_WEIGHTS_CALM;   break;
+    case MOOD_SLEEPY: w = EXPR_WEIGHTS_SLEEPY; break;
+  }
+
+  // Avoid repeating the exact same non-sleepy expression twice in a row
+  for (uint8_t tries = 0; tries < 4; tries++) {
+    uint8_t pick = (uint8_t)weightedPick(w, DEMO_COUNT);
+    if (pick != lastExpr || currentMood == MOOD_SLEEPY) return pick;
+  }
+  return DEMO_NORMAL;
+}
+
+// ── Idle micro-animations ────────────────────────────────────
+void idleBlink() {
+  drawNormalEyes(0, true);  if (frameDelay(speedMs(80))) return;
+  drawNormalEyes(0, false);
+}
+
+void idleLookLeft() {
+  drawNormalEyes(-14, false); if (frameDelay(speedMs(450))) return;
+  drawNormalEyes(-14, true);  if (frameDelay(speedMs(60)))  return;
+  drawNormalEyes(0,   false);
+}
+
+void idleLookRight() {
+  drawNormalEyes(14, false);  if (frameDelay(speedMs(450))) return;
+  drawNormalEyes(14, true);   if (frameDelay(speedMs(60)))  return;
+  drawNormalEyes(0,  false);
+}
+
+void idleLookUp() {
+  extern void drawNormalEyesOffset(int16_t ox, int16_t oy, bool blink);
+  drawNormalEyesOffset(0, -10, false); if (frameDelay(speedMs(420))) return;
+  drawNormalEyesOffset(0, -10, true);  if (frameDelay(speedMs(60)))  return;
+  drawNormalEyesOffset(0,   0, false);
+}
+
+void idleBreathe() {
+  for (uint8_t i = 0; i < 3; i++) {
+    drawNormalEyes(-2, false); if (frameDelay(speedMs(210))) return;
+    drawNormalEyes( 2, false); if (frameDelay(speedMs(210))) return;
+  }
+  drawNormalEyes(0, false);
+}
+
+void idleShiver() {
+  for (uint8_t i = 0; i < 5; i++) {
+    drawNormalEyes(-4, false); if (frameDelay(speedMs(40))) return;
+    drawNormalEyes( 4, false); if (frameDelay(speedMs(40))) return;
+  }
+  drawNormalEyes(0, false);
+}
+
+const uint8_t IDLE_WEIGHTS_HYPER[]  = {20, 28, 28, 14,  5,  5};
+const uint8_t IDLE_WEIGHTS_HAPPY[]  = {28, 20, 20, 12, 14,  6};
+const uint8_t IDLE_WEIGHTS_CALM[]   = {34, 10, 10,  8, 32,  6};
+const uint8_t IDLE_WEIGHTS_SLEEPY[] = { 0,  0,  0,  0,  0,  0};
+
 void playRandomIdle() {
-  const uint8_t* w = idleWeightsForMood(currentMood);
+  if (currentMood == MOOD_SLEEPY) return;
+  const uint8_t* w = IDLE_WEIGHTS_HAPPY;
+  if (currentMood == MOOD_HYPER) w = IDLE_WEIGHTS_HYPER;
+  else if (currentMood == MOOD_CALM) w = IDLE_WEIGHTS_CALM;
+
   int idx = weightedPick(w, 6);
   switch (idx) {
     case 0: idleBlink();     break;
@@ -176,126 +250,129 @@ void playRandomIdle() {
   }
 }
 
-// ── Reactions ──────────────────────────────────────────────────
-// Reaction types: 0=sparkle 1=heart_pulse 2=extra_look 3=extra_z
+// ── Reaction Chains ──────────────────────────────────────────
 struct ReactionRule {
   uint8_t triggerDemo;
-  uint8_t probability;  // 0-100
+  uint8_t probability;
   uint8_t reactionType;
 };
 
-// NOTE: DEMO_NORMAL..DEMO_SLEEPY constants are #defined in
-// clawd_mochi_nowifi.ino (the main sketch). They are visible
-// to this header because the .ino #includes "dynamics.h"
-// AFTER those #defines.
-
 const ReactionRule REACTIONS[] = {
-  {DEMO_WINK,    50, 0},
-  {DEMO_HEART,   40, 1},
-  {DEMO_SPARKLE, 60, 2},
-  {DEMO_SLEEPY,  80, 3},
+  {DEMO_WINK,      50, 0},  // -> Sparkle
+  {DEMO_HEART,     45, 1},  // -> Heart pulse
+  {DEMO_SPARKLE,   55, 2},  // -> Extra glance
+  {DEMO_SLEEPY,    75, 3},  // -> Extra floating Z
+  {DEMO_CURIOUS,   50, 4},  // -> Aha happy arc!
 };
 const uint8_t REACTIONS_COUNT = sizeof(REACTIONS) / sizeof(REACTIONS[0]);
 
-// Forward-declare reaction implementations (defined in Task 7)
-void reactionSparkle();
-void reactionHeartPulse();
-void reactionExtraLook();
-void reactionExtraZ();
-
 void reactAfter(uint8_t lastDemo) {
+  if (pendingEvent != EVT_NONE) return;
   for (uint8_t i = 0; i < REACTIONS_COUNT; i++) {
     const ReactionRule& r = REACTIONS[i];
     if (r.triggerDemo == lastDemo) {
       if (random(100) < r.probability) {
         switch (r.reactionType) {
-          case 0: reactionSparkle();    break;
-          case 1: reactionHeartPulse(); break;
-          case 2: reactionExtraLook();  break;
-          case 3: reactionExtraZ();     break;
+          case 0: animSparkleEyes(); break;
+          case 1:
+            for (uint8_t k = 0; k < 3; k++) {
+              drawHeartEyes(1.2f); if (frameDelay(speedMs(85))) return;
+              drawHeartEyes(1.0f); if (frameDelay(speedMs(85))) return;
+            }
+            break;
+          case 2:
+            drawNormalEyes(random(2) ? 12 : -12, false);
+            if (frameDelay(speedMs(260))) return;
+            drawNormalEyes(0, false);
+            break;
+          case 3:
+            drawSleepyEyes(6, 0); if (frameDelay(speedMs(450))) return;
+            drawSleepyEyes(6, 1); if (frameDelay(speedMs(450))) return;
+            drawSleepyEyes(6, 2);
+            break;
+          case 4:
+            animHappyArcEyes();
+            break;
         }
       }
-      return;  // only one reaction per main expression
+      return;
     }
   }
 }
 
-// ── Reaction implementations ───────────────────────────────────
-extern void animSparkleEyes();
-extern void drawHeartEyes(float scale);
-extern void drawNormalEyes(int16_t ox, bool blink);
-extern void drawSleepyEyes(int16_t eyeH, int8_t zFrame);
-extern int  speedMs(int ms);
-
-void reactionSparkle() {
-  animSparkleEyes();
-}
-
-void reactionHeartPulse() {
-  // 3 quick scale pulses
-  for (uint8_t i = 0; i < 3; i++) {
-    drawHeartEyes(1.2);  delay(speedMs(90));
-    drawHeartEyes(1.0);  delay(speedMs(90));
-  }
-}
-
-void reactionExtraLook() {
-  // Quick glance L or R after Sparkle
-  if (random(2) == 0) {
-    drawNormalEyes(-10, false); delay(speedMs(280));
-  } else {
-    drawNormalEyes( 10, false); delay(speedMs(280));
-  }
-  drawNormalEyes(0, false);
-}
-
-void reactionExtraZ() {
-  // One more Z after Sleepy
-  drawSleepyEyes(6, 0);
-  delay(speedMs(500));
-  drawSleepyEyes(6, 1);
-  delay(speedMs(500));
-  drawSleepyEyes(6, 2);
-}
-
-// ── Easter eggs ────────────────────────────────────────────────
-// Egg IDs: 0=ZOOM 1=DANCE 2=FLASH 3=SECRET
+// ── Easter Eggs ──────────────────────────────────────────────
 struct EasterEggRule {
   uint8_t eggId;
-  uint8_t probability[4];  // HYPER/HAPPY/CALM/SLEEPY (denominator = "1 in N")
+  uint8_t probability[4];
 };
 
 const EasterEggRule EGGS[] = {
-  {0, {5,  8, 30, 0}},   // ZOOM
-  {1, {8, 20, 50, 0}},   // DANCE
-  {2, {10, 25, 60, 0}},  // FLASH
-  {3, {15, 30, 80, 0}},  // SECRET
+  {0, { 7, 14, 35, 0}},  // ZOOM
+  {1, {12, 26, 60, 0}},  // DANCE
+  {2, {14, 30, 70, 0}},  // FLASH
+  {3, {16, 32, 80, 0}},  // SECRET
 };
 const uint8_t EGGS_COUNT = sizeof(EGGS) / sizeof(EGGS[0]);
 
-// Forward declarations (defined in Task 9)
-void eggZoom();
-void eggDance();
-void eggFlash();
-void eggSecret();
-
 bool shouldEasterEgg() {
-  // Pick the most likely egg for this mood, return true if it fires
+  if (currentMood == MOOD_SLEEPY || aiActiveMode == AI_MODE_THINKING) return false;
   uint8_t bestDenom = 255;
   for (uint8_t i = 0; i < EGGS_COUNT; i++) {
     uint8_t d = EGGS[i].probability[currentMood];
     if (d > 0 && d < bestDenom) bestDenom = d;
   }
-  if (bestDenom == 255) return false;  // SLEEPY: no eggs
+  if (bestDenom == 255) return false;
   return random(bestDenom) == 0;
 }
 
+void eggZoom() {
+  for (int s = 10; s <= 15; s++) {
+    drawHeartEyes(s / 10.0f); if (frameDelay(speedMs(40))) return;
+  }
+  drawHeartEyes(1.5f); if (frameDelay(speedMs(120))) return;
+  drawHeartEyes(0.5f); if (frameDelay(speedMs(120))) return;
+  drawHeartEyes(1.0f); if (frameDelay(speedMs(120))) return;
+}
+
+void eggDance() {
+  drawNormalEyes(-14, false); if (frameDelay(140)) return;
+  drawNormalEyes( 14, false); if (frameDelay(140)) return;
+  extern void drawSquishEyes(bool closed);
+  drawSquishEyes(false);      if (frameDelay(160)) return;
+  drawHeartEyes(1.1f);        if (frameDelay(160)) return;
+  extern void drawSparkleEyes(float scale, bool rotated);
+  drawSparkleEyes(1.0f, false); if (frameDelay(160)) return;
+  extern void drawHappyArcEyes(int16_t bounceY);
+  drawHappyArcEyes(-6);       if (frameDelay(220)) return;
+}
+
+void eggFlash() {
+  extern uint16_t animBgColor;
+  extern uint16_t C_ORANGE;
+  uint16_t saved = animBgColor;
+  for (uint8_t i = 0; i < 2; i++) {
+    animBgColor = 0xFFFF;   drawNormalEyes(0, false); if (frameDelay(95)) { animBgColor = saved; return; }
+    animBgColor = 0x0000;   drawNormalEyes(0, false); if (frameDelay(95)) { animBgColor = saved; return; }
+    animBgColor = C_ORANGE; drawNormalEyes(0, false); if (frameDelay(95)) { animBgColor = saved; return; }
+  }
+  animBgColor = saved;
+  tft.fillScreen(animBgColor);
+  drawNormalEyes(0, false);
+  redrawQuipIfActive();
+  redrawPomodoroBar(true);
+}
+
+void eggSecret() {
+  drawSurpriseEyes();
+  if (frameDelay(speedMs(750))) return;
+  drawNormalEyes(0, false);
+}
+
 void playEasterEgg() {
-  // Re-roll which egg to play, weighted by per-egg probability
   uint16_t total = 0;
   for (uint8_t i = 0; i < EGGS_COUNT; i++) {
     uint8_t d = EGGS[i].probability[currentMood];
-    if (d > 0) total += 255 / d;  // weight ∝ 1/denominator
+    if (d > 0) total += 255 / d;
   }
   if (total == 0) return;
   uint16_t r = random(total);
@@ -313,66 +390,6 @@ void playEasterEgg() {
     }
     r -= w;
   }
-}
-
-// ── Easter egg implementations ─────────────────────────────────
-extern void drawHeartEyes(float scale);
-extern void drawNormalEyes(int16_t ox, bool blink);
-extern void drawSurpriseEyes();  // defined in main .ino (Task 10)
-extern int  speedMs(int ms);
-
-void eggZoom() {
-  // Eyes grow to 1.5× then shrink to 0.5× then back
-  // Use heart-eye as proxy (it accepts scale parameter)
-  for (int s = 10; s <= 15; s++) {
-    drawHeartEyes(s / 10.0); delay(speedMs(40));
-  }
-  drawHeartEyes(1.5); delay(speedMs(120));
-  drawHeartEyes(0.5); delay(speedMs(120));
-  drawHeartEyes(1.0); delay(speedMs(120));
-}
-
-extern void animNormalEyes();
-extern void animSquishEyes();
-extern void animHeartEyes();
-extern void animSparkleEyes();
-extern void animWink();
-extern void animSleepy();
-
-void eggDance() {
-  // All 6 expressions rapid-fire
-  animNormalEyes();
-  animSquishEyes();
-  animHeartEyes();
-  animSparkleEyes();
-  animWink();
-  animSleepy();
-}
-
-void eggFlash() {
-  // Background flashes through white → black → orange × 3
-  // (Can't use C_WHITE/C_BLACK macros here — they're #defines,
-  //  not variables, so extern declarations break.)
-  extern uint16_t animBgColor;
-  extern uint16_t C_ORANGE;
-  const uint16_t FLASH_WHITE = 0xFFFF;  // ST77XX_WHITE
-  const uint16_t FLASH_BLACK = 0x0000;  // ST77XX_BLACK
-  uint16_t saved = animBgColor;
-  for (uint8_t i = 0; i < 3; i++) {
-    animBgColor = FLASH_WHITE; drawNormalEyes(0, false); delay(speedMs(120));
-    animBgColor = FLASH_BLACK; drawNormalEyes(0, false); delay(speedMs(120));
-    animBgColor = C_ORANGE;    drawNormalEyes(0, false); delay(speedMs(120));
-  }
-  animBgColor = saved;
-  drawNormalEyes(0, false);
-}
-
-void eggSecret() {
-  // The 7th hidden expression: shocked face
-  drawSurpriseEyes();
-  delay(speedMs(800));
-  // Hold for a moment, then snap back to normal
-  animNormalEyes();
 }
 
 #endif // DYNAMICS_H
