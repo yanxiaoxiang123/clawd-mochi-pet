@@ -123,6 +123,7 @@ clawd-mochi-pet/
 │   └── dynamics-link.h           ← Non-blocking USB Serial protocol & 3px Pomodoro bar
 ├── tools/
 │   └── mochi.py                  ← 💻 Mac companion daemon, CLI & AI coding hooks
+├── preview.html                  ← 🎨 Interactive web showcase of all upgrades & 15+10 animations
 ├── models/                       ← 3D-printable shell STL files
 ├── pics/                         ← Reference photos
 └── README.md
