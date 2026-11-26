@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Clawd Mochi 零硬件改动全套升级与动画总览</title>
+  <title>Clawd Mochi 真机实时联动控制台 & 全动画总览</title>
   <style>
     :root {
       --bg: #f6f6f8;
@@ -15,6 +15,8 @@
       --primary-fg: #ffffff;
       --sec: #eff0f4;
       --sec-fg: #22252d;
+      --ok-bg: rgba(34, 197, 94, 0.14);
+      --ok-fg: #15803d;
     }
     @media (prefers-color-scheme: dark) {
       :root {
@@ -27,6 +29,8 @@
         --primary-fg: #ffffff;
         --sec: #252a34;
         --sec-fg: #e5e8ef;
+        --ok-bg: rgba(34, 197, 94, 0.18);
+        --ok-fg: #4ade80;
       }
     }
     * { box-sizing: border-box; }
@@ -44,19 +48,34 @@
     h1 { margin: 0; font-size: 20px; }
     h2 { margin: 0; font-size: 15px; }
     .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--primary); color: var(--primary-fg); }
+    .live-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 11px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      background: var(--sec);
+      color: var(--muted);
+    }
+    .live-pill.online { background: var(--ok-bg); color: var(--ok-fg); }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+    .live-pill.online .dot { animation: pulse 1.6s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
     .badge-sec { padding: 3px 9px; border-radius: 8px; font-size: 12px; background: var(--sec); color: var(--sec-fg); font-family: ui-monospace, SFMono-Regular, monospace; }
     .muted { color: var(--muted); font-size: 12px; }
-    .kpi-row { display: grid; grid-template-columns: repeat(4, minmax(72px, 1fr)); gap: 8px; text-align: center; }
+    .kpi-row { display: grid; grid-template-columns: repeat(4, minmax(84px, 1fr)); gap: 8px; text-align: center; }
     .kpi { background: var(--sec); padding: 8px 12px; border-radius: 12px; }
-    .kpi b { font-size: 16px; display: block; }
-    .top-grid { display: grid; grid-template-columns: 380px 1fr; gap: 20px; }
+    .kpi b { font-size: 15px; display: block; font-variant-numeric: tabular-nums; }
+    .top-grid { display: grid; grid-template-columns: 390px 1fr; gap: 20px; }
     @media (max-width: 920px) { .top-grid { grid-template-columns: 1fr; } }
     .shell {
       padding: 20px;
       border-radius: 28px;
       background: linear-gradient(145deg, #ea3815, #b81d04);
       box-shadow: 0 12px 28px rgba(0,0,0,0.22);
-      margin: 12px auto;
+      margin: 8px auto;
       width: fit-content;
     }
     .screen-wrap {
@@ -75,10 +94,10 @@
       inset: 0;
       background: #000;
       opacity: 0;
-      transition: opacity 0.12s linear;
+      transition: opacity 0.15s linear;
     }
-    .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; font-size: 12px; }
-    .stat-box { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 8px 10px; }
+    .stats-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; width: 100%; font-size: 12px; }
+    .stat-box { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 8px 11px; }
     .btn-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
     button {
       cursor: pointer;
@@ -89,9 +108,10 @@
       font-weight: 500;
       background: var(--sec);
       color: var(--sec-fg);
-      transition: opacity 0.15s, border-color 0.15s;
+      transition: opacity 0.15s, border-color 0.15s, transform 0.08s;
     }
-    button:hover { opacity: 0.88; border-color: var(--primary); }
+    button:hover { opacity: 0.9; border-color: var(--primary); }
+    button:active { transform: scale(0.98); }
     button.primary { background: var(--primary); color: var(--primary-fg); }
     button.ghost { background: transparent; border-color: var(--border); padding: 5px 10px; }
     .expr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(175px, 1fr)); gap: 12px; margin-top: 14px; }
@@ -138,25 +158,25 @@
     <header class="card header">
       <div>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-          <h1>Clawd Mochi 智能桌面宠物 · 全套升级与动画总览</h1>
-          <span class="badge">零新增硬件</span>
+          <h1>Clawd Mochi 真机实时联动控制台 & 全动画总览</h1>
+          <span id="liveConnBadge" class="live-pill"><span class="dot"></span><span id="liveConnText">正在连接桌面小螃蟹...</span></span>
         </div>
         <div class="muted" style="margin-top:4px;">
-          基于原有 ESP32-C3 + 1.54" ST7789 (240×240) 硬件，解锁 15 种几何表情、自然小憩苏醒、PWM 呼吸背光、蓝牙隔空贴贴、芯片测温、NVS 记忆与电脑 AI 编程联动。
+          连接真机时：左侧画布与各项指标每秒实时同步桌上那台小螃蟹的真实画面与传感器读数；点击右侧或下方任意按钮，真机屏幕立刻同步执行。
         </div>
       </div>
       <div class="kpi-row">
-        <div class="kpi"><b>15</b><span class="muted">几何表情</span></div>
-        <div class="kpi"><b>6 + 4</b><span class="muted">微动作+彩蛋</span></div>
-        <div class="kpi"><b>5 套</b><span class="muted">三句小剧场</span></div>
-        <div class="kpi"><b>23%</b><span class="muted">Flash 占用</span></div>
+        <div class="kpi"><b id="kpiCompanion">--</b><span class="muted">累计陪伴</span></div>
+        <div class="kpi"><b id="kpiBoots">--</b><span class="muted">见面次数</span></div>
+        <div class="kpi"><b id="kpiClock">--:--</b><span class="muted">同步时间</span></div>
+        <div class="kpi"><b id="kpiPomo">未开启</b><span class="muted">专注番茄钟</span></div>
       </div>
     </header>
 
     <section class="top-grid">
       <div class="card" style="display:flex;flex-direction:column;justify-content:space-between;gap:12px;">
         <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;">
-          <b>1:1 屏幕实时仿真 (240×240 px)</b>
+          <b id="mirrorTitle">真机屏幕 1:1 实时镜像 (240×240)</b>
           <span id="simStateBadge" class="badge-sec">HAPPY · 在桌前</span>
         </div>
 
@@ -172,77 +192,74 @@
         </div>
 
         <div class="stats-row">
-          <div class="stat-box"><div class="muted">NVS 亲密度</div><b id="statLove">Lv.2 (♥ 2)</b></div>
-          <div class="stat-box"><div class="muted">蓝牙差值雷达</div><b id="statBle">-44 dBm</b></div>
-          <div class="stat-box"><div class="muted">芯片/体感温度</div><b id="statTemp">50.5°C (舒适)</b></div>
+          <div class="stat-box"><div class="muted">NVS 亲密度</div><b id="statLove">Lv.1 (♥ 0)</b></div>
+          <div class="stat-box"><div class="muted">蓝牙近场信号</div><b id="statBle">-- dBm</b></div>
+          <div class="stat-box"><div class="muted">芯片/环境温度</div><b id="statTemp">-- °C</b></div>
+          <div class="stat-box"><div class="muted">当前气泡台词</div><b id="statQuip" style="word-break:break-all;">(安静陪伴中)</b></div>
         </div>
-
-        <label style="font-size:12px;display:flex;align-items:center;gap:8px;cursor:pointer;padding-top:8px;border-top:1px solid var(--border);">
-          <input id="autoCycleToggle" type="checkbox" checked />
-          <span>自动轮播生命状态机（取消勾选可定格单看某个表情）</span>
-        </label>
       </div>
 
       <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--border);">
-          <h2>新玩法实时互动体验台（点击立即在左侧屏幕演示）</h2>
-          <span class="muted">与真机固件逻辑 1:1 对齐</span>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:6px;">
+          <h2>真机实时遥控台（点击按钮 → 桌上的小螃蟹立刻同步响应）</h2>
+          <span id="cmdFeedback" class="muted">就绪</span>
         </div>
 
         <div class="sec-block">
-          <div class="muted"><b>1. 无线近场黑科技 & 离座感知（无需物理按键）</b></div>
+          <div class="muted"><b>1. 亲密互动 & 在岗状态联动</b></div>
           <div class="btn-group">
-            <button class="primary" onclick="triggerScenario('pet')">⌚ 模拟 Apple Watch 贴近外壳 (-30 dBm 贴贴)</button>
-            <button onclick="triggerScenario('away')">🚶 锁屏/离开工位 (调暗背光打盹)</button>
-            <button onclick="triggerScenario('welcome')">👋 回到桌前 (惊喜唤醒问候)</button>
-            <button onclick="triggerScenario('long_away')">💧 离开太久刚回来 (先委屈掉泪再开心)</button>
+            <button class="primary" onclick="triggerScenario('pet')">⌚ 摸摸头 / 贴贴真机 (亲密度 +1)</button>
+            <button onclick="triggerScenario('away')">🚶 让它进入离座省电打盹</button>
+            <button onclick="triggerScenario('welcome')">👋 触发“欢迎回座”问候</button>
+            <button onclick="triggerScenario('long_away')">💧 触发“久别委屈掉泪 → 开心”</button>
           </div>
         </div>
 
         <div class="sec-block">
-          <div class="muted"><b>2. AI 编程钩子 & Mac 状态联动（USB 串口免复位守护）</b></div>
+          <div class="muted"><b>2. AI 编程状态 & 电脑健康提醒</b></div>
           <div class="btn-group">
             <button onclick="triggerScenario('ai_think')">🤖 AI 思考/跑工具中</button>
             <button onclick="triggerScenario('ai_ask')">❓ AI 等你拍板</button>
-            <button onclick="triggerScenario('ai_done')">✨ AI 搞定任务 (闪屏欢呼)</button>
-            <button onclick="triggerScenario('sitting')">💢 连坐 50 分钟 (傲娇催喝水)</button>
-            <button onclick="triggerScenario('cpu_high')">🔥 电脑负载飙高 (眩晕流汗)</button>
-            <button onclick="triggerScenario('git_commit')">🎉 Git 提交成功</button>
+            <button onclick="triggerScenario('ai_done')">✨ AI 搞定任务 (真机闪屏欢呼)</button>
+            <button onclick="triggerScenario('sitting')">💢 久坐傲娇催喝水</button>
+            <button onclick="triggerScenario('cpu_high')">🔥 电脑高负载眩晕流汗</button>
+            <button onclick="triggerScenario('git_commit')">🎉 Git 提交成功庆祝</button>
           </div>
         </div>
 
         <div class="sec-block">
-          <div class="muted"><b>3. 底端 3px 番茄钟进度条 & 自然呼吸作息周期</b></div>
+          <div class="muted"><b>3. 真机底端 3px 番茄钟 & 作息演示</b></div>
           <div class="btn-group">
-            <button onclick="triggerScenario('pomo_demo')">🍅 演示底端 3px 番茄钟进度条 (10秒快进达成)</button>
-            <button onclick="triggerScenario('nap_wake')">😴 演示“小憩呼吸灯 → 自动伸懒腰苏醒”</button>
-            <button onclick="triggerScenario('night_mode')">🌙 深夜 23:30 护眼陪熬夜</button>
-            <button onclick="triggerScenario('cold_boot')">❄️ 刚开机芯片低温发抖吐槽</button>
+            <button class="primary" onclick="triggerScenario('pomo_25')">🍅 开启真机 25 分钟番茄钟</button>
+            <button onclick="triggerScenario('pomo_demo')">⚡ 10 秒快进演示番茄钟达成</button>
+            <button onclick="triggerScenario('pomo_stop')">⏹ 停止番茄钟</button>
+            <button onclick="triggerScenario('nap_wake')">😴 演示“小憩呼吸灯 → 伸懒腰苏醒”</button>
+            <button onclick="triggerScenario('night_mode')">🌙 深夜护眼调暗模式</button>
           </div>
         </div>
 
         <div class="sec-block">
-          <div class="muted"><b>4. 自言自语三句小剧场 & 4 种彩蛋 & 6 种待机微动作</b></div>
+          <div class="muted"><b>4. 三句连贯小剧场 & 4 种隐藏彩蛋 & 6 种微动作</b></div>
           <div class="btn-group">
-            <button onclick="playMiniTheater()">💬 播放三句连贯小剧场</button>
-            <button onclick="playEgg('zoom')">🥚 彩蛋: 巨化脉冲</button>
-            <button onclick="playEgg('dance')">🥚 彩蛋: 串烧热舞</button>
-            <button onclick="playEgg('flash')">🥚 彩蛋: 闪屏派对</button>
-            <button onclick="playEgg('secret')">🥚 彩蛋: 隐藏震惊</button>
+            <button onclick="playMiniTheater()">💬 真机播放三句小剧场</button>
+            <button onclick="playEgg('zoom', 0)">🥚 彩蛋: 巨化脉冲</button>
+            <button onclick="playEgg('dance', 1)">🥚 彩蛋: 串烧热舞</button>
+            <button onclick="playEgg('flash', 2)">🥚 彩蛋: 闪屏派对</button>
+            <button onclick="playEgg('secret', 3)">🥚 彩蛋: 隐藏震惊</button>
           </div>
           <div class="btn-group">
-            <button class="ghost" onclick="playIdle('blink')">👀 眨眼</button>
-            <button class="ghost" onclick="playIdle('lookL')">👀 向左偷瞄</button>
-            <button class="ghost" onclick="playIdle('lookR')">👀 向右偷瞄</button>
-            <button class="ghost" onclick="playIdle('lookUp')">👀 抬头看天</button>
-            <button class="ghost" onclick="playIdle('breathe')">👀 轻柔呼吸</button>
-            <button class="ghost" onclick="playIdle('shiver')">👀 怕冷发抖</button>
+            <button class="ghost" onclick="playIdle('blink', 0)">👀 眨眼</button>
+            <button class="ghost" onclick="playIdle('lookL', 1)">👀 向左偷瞄</button>
+            <button class="ghost" onclick="playIdle('lookR', 2)">👀 向右偷瞄</button>
+            <button class="ghost" onclick="playIdle('lookUp', 3)">👀 抬头看天</button>
+            <button class="ghost" onclick="playIdle('breathe', 4)">👀 轻柔呼吸</button>
+            <button class="ghost" onclick="playIdle('shiver', 5)">👀 怕冷发抖</button>
           </div>
         </div>
 
         <div class="input-row">
-          <input id="customSayInput" type="text" maxlength="16" placeholder="输入任意中英文台词，在左侧透明气泡里预览..." />
-          <button class="primary" onclick="sendCustomQuip()">发送台词</button>
+          <input id="customSayInput" type="text" maxlength="16" placeholder="输入想让桌上小螃蟹说的话 (支持中英文)，回车立刻显示在真机屏幕上..." />
+          <button class="primary" onclick="sendCustomQuip()">发到真机屏幕</button>
         </div>
       </div>
     </section>
@@ -250,8 +267,8 @@
     <section class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;padding-bottom:10px;border-bottom:1px solid var(--border);">
         <div>
-          <h2>全部 15 种纯几何像素表情动态图鉴（同屏实时运行）</h2>
-          <div class="muted">零位图内存占用，全部由数学几何实时绘制；点击任意卡片可在上方大屏幕完整播放。</div>
+          <h2>全部 15 种纯几何像素表情动态图鉴（点击任意卡片，真机屏幕立即切换该表情）</h2>
+          <div class="muted">高亮外框代表你桌上那台小螃蟹此刻正在展示的表情。</div>
         </div>
         <span class="badge-sec">原版 6+1 种 → 升级版 15 种</span>
       </div>
@@ -268,7 +285,7 @@
           </div>
           <div class="stat-box">
             <b>⌚ 蓝牙近场“隔空贴贴” & 芯片温度感知</b>
-            <div class="muted" style="margin-top:4px;">升级前：无按键、无传感器，完全无法互动。<br/>升级后：按设备地址追踪蓝牙信号差值（过滤旁边 -40 dBm 静止电脑），Apple Watch 或 iPhone 贴近外壳 2~6cm 即秒级触发害羞贴贴或叫醒；内置硅温度计感知冷开机与环境温升。</div>
+            <div class="muted" style="margin-top:4px;">升级前：无按键、无传感器，完全无法互动。<br/>升级后：按设备地址追踪蓝牙信号差值（过滤旁边静止电脑），Apple Watch 或 iPhone 贴近外壳 2~6cm 即秒级触发害羞贴贴或叫醒；内置硅温度计感知冷开机与环境温升。</div>
           </div>
           <div class="stat-box">
             <b>🧠 NVS 跨重启记忆 & 三句小剧场</b>
@@ -278,8 +295,8 @@
       </div>
 
       <div class="card">
-        <h2 style="padding-bottom:10px;border-bottom:1px solid var(--border);">电脑端联动与快捷指令速查 (tools/mochi.py)</h2>
-        <div class="muted" style="margin-top:10px;">插充电宝自动跑纯单机宠物模式；插电脑自动后台同步时间、锁屏休眠、久坐 50 分钟提醒与 CPU 过载吐槽：</div>
+        <h2 style="padding-bottom:10px;border-bottom:1px solid var(--border);">命令行与 AI 钩子指令速查 (tools/mochi.py)</h2>
+        <div class="muted" style="margin-top:10px;">守护进程同时提供本网页实时服务与终端毫秒级控制，互不抢占串口：</div>
         <pre>python3 tools/mochi.py status                 # 查看心情/亲密度/温度/蓝牙
 python3 tools/mochi.py pet                    # 电脑端远程摸头 (亲密度+1)
 python3 tools/mochi.py focus 25               # 开启底端 3px 番茄钟进度条
@@ -510,102 +527,208 @@ python3 tools/mochi.py expr 0..14             # 指定切换任意一种表情</
     const mainCtx = document.getElementById('mainCanvas').getContext('2d');
     const overlayEl = document.getElementById('backlightOverlay');
     let sim = {
+      online: false,
       exprId: 7, exprStartMs: performance.now(), exprDurationMs: 3200, bgCol: C_ORANGE,
-      quipText: '升级完成! 点右边按钮试试~', quipUntilMs: performance.now() + 4500, theaterQueue: [],
-      pomoActive: false, pomoStartMs: 0, pomoDurationMs: 10000,
+      quipText: '', quipUntilMs: 0, theaterQueue: [],
+      pomoRemSec: 0, pomoTotalSec: 0,
       targetBrightness: 255, currentBrightness: 255, sleepBreathing: false,
-      affection: 2, bleRssi: '-44', tempStr: '50.5°C (舒适)', badgeText: 'HAPPY · 在桌前', customAnim: null
+      customAnim: null
     };
 
-    function showSimQuip(text, dur = 3200) { sim.quipText = text; sim.quipUntilMs = performance.now() + dur; }
-    function addLove(d) {
-      sim.affection += d;
-      document.getElementById('statLove').textContent = `Lv.${1 + Math.floor(Math.sqrt(sim.affection))} (♥ ${sim.affection})`;
-    }
-    function syncStatsUI() {
-      document.getElementById('simStateBadge').textContent = sim.badgeText;
-      document.getElementById('statBle').textContent = `${sim.bleRssi} dBm`;
-      document.getElementById('statTemp').textContent = sim.tempStr;
-    }
-    function setMainExpr(id, dur = 3000) {
-      sim.customAnim = null; sim.bgCol = C_ORANGE; sim.exprId = id; sim.exprStartMs = performance.now(); sim.exprDurationMs = dur;
-      document.getElementById('exprLabel').textContent = `#${String(id).padStart(2, '0')} ${EXPRESSIONS[id].name}`;
+    function highlightExpr(id) {
+      const meta = EXPRESSIONS[id] || EXPRESSIONS[0];
+      document.getElementById('exprLabel').textContent = `#${String(id).padStart(2, '0')} ${meta.name}`;
       EXPRESSIONS.forEach(e => {
         const el = document.getElementById(`expr-card-${e.id}`);
         if (el) el.classList.toggle('active', e.id === id);
       });
     }
 
+    function setLocalExpr(id, dur = 3200) {
+      sim.customAnim = null;
+      sim.bgCol = C_ORANGE;
+      if (sim.exprId !== id) {
+        sim.exprId = id;
+        sim.exprStartMs = performance.now();
+      }
+      sim.exprDurationMs = dur;
+      highlightExpr(id);
+    }
+
+    function formatMinutes(mins) {
+      if (mins >= 60) {
+        const h = Math.floor(mins / 60), m = mins % 60;
+        return m > 0 ? `${h}h ${m}m` : `${h} 小时`;
+      }
+      return `${mins} 分钟`;
+    }
+
+    // 应用从真机 /api/status 返回的实时状态
+    function applyHardwareStatus(st) {
+      const badge = document.getElementById('liveConnBadge');
+      const connText = document.getElementById('liveConnText');
+      if (!st || !st.online) {
+        sim.online = false;
+        badge.classList.remove('online');
+        connText.textContent = '离线演示模式（未检测到守护服务或硬件）';
+        document.getElementById('mirrorTitle').textContent = '离线屏幕仿真 (240×240)';
+        return;
+      }
+
+      sim.online = true;
+      badge.classList.add('online');
+      connText.textContent = `真机实时同步中 · ${st.port || 'ESP32-C3'}`;
+      document.getElementById('mirrorTitle').textContent = '真机屏幕 1:1 实时镜像 (240×240)';
+
+      // 顶部 4 个实时 KPI
+      document.getElementById('kpiCompanion').textContent = formatMinutes(st.mins);
+      document.getElementById('kpiBoots').textContent = `第 ${st.boots} 次`;
+      document.getElementById('kpiClock').textContent = st.clock || '--:--';
+      if (st.pomo > 0) {
+        const mm = Math.floor(st.pomo / 60), ss = String(st.pomo % 60).padStart(2, '0');
+        document.getElementById('kpiPomo').textContent = `${mm}:${ss}`;
+      } else {
+        document.getElementById('kpiPomo').textContent = '未开启';
+      }
+
+      // 状态栏与传感器
+      const presStr = st.present ? '在桌前' : '离开工位';
+      const aiStr = st.ai === 1 ? ' · AI思考中' : '';
+      document.getElementById('simStateBadge').textContent = `${st.mood} · ${presStr}${aiStr}`;
+      document.getElementById('statLove').textContent = `Lv.${st.lv} (♥ ${st.love})`;
+      document.getElementById('statBle').textContent = `${st.rssi} dBm`;
+      const estRoom = (st.temp - 24.5).toFixed(1);
+      document.getElementById('statTemp').textContent = `${st.temp.toFixed(1)}°C (体感~${estRoom}°C)`;
+      document.getElementById('statQuip').textContent = st.quip ? `"${st.quip}"` : '(安静眨眼中)';
+
+      // 镜像真机的表情、气泡、PWM 背光与底端 3px 番茄钟
+      if (!sim.customAnim && typeof st.expr === 'number' && st.expr >= 0 && st.expr < 15) {
+        setLocalExpr(st.expr, 3200);
+      }
+      sim.targetBrightness = st.bright ?? 255;
+      sim.sleepBreathing = false; // 真机端已算好呼吸波直接反映在 st.bright 里!
+      sim.quipText = st.quip || '';
+      sim.quipUntilMs = sim.quipText ? (performance.now() + 2500) : 0;
+      sim.pomoRemSec = st.pomo || 0;
+      sim.pomoTotalSec = st.pomototal || 0;
+    }
+
+    async function pollHardware() {
+      try {
+        const res = await fetch('/api/status', { cache: 'no-store' });
+        if (res.ok) {
+          const st = await res.json();
+          applyHardwareStatus(st);
+        } else {
+          applyHardwareStatus({ online: false });
+        }
+      } catch (_e) {
+        applyHardwareStatus({ online: false });
+      }
+    }
+
+    async function sendDeviceCmd(cmd, label) {
+      const fb = document.getElementById('cmdFeedback');
+      if (sim.online) {
+        fb.textContent = `正在下发真机: ${label}...`;
+        try {
+          const res = await fetch('/api/cmd', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cmd })
+          });
+          const data = await res.json();
+          if (data && data.status) applyHardwareStatus(data.status);
+          fb.textContent = `真机已执行: ${label} ✓`;
+          return true;
+        } catch (_e) {
+          fb.textContent = '连接中断，已切换本地预览';
+        }
+      } else {
+        fb.textContent = `本地演示: ${label}`;
+      }
+      return false;
+    }
+
+    function showOfflineQuip(text, dur = 3200) {
+      if (!sim.online) { sim.quipText = text; sim.quipUntilMs = performance.now() + dur; }
+    }
+
     window.triggerScenario = function(type) {
-      const now = performance.now();
-      if (type === 'pet') {
-        const woke = sim.sleepBreathing || sim.targetBrightness < 120;
-        sim.sleepBreathing = false; sim.targetBrightness = 255; sim.bleRssi = '-30'; sim.badgeText = 'HYPER · 隔空贴贴!';
-        addLove(1); syncStatsUI();
-        if (woke) { showSimQuip('唔..被你贴贴叫醒啦~', 3400); setMainExpr(13, 2200); setTimeout(() => setMainExpr(7, 3000), 1800); }
-        else { showSimQuip(['贴贴~ <3', '摸头长不高啦!', '嘿嘿好开心~'][Math.floor(Math.random() * 3)], 3200); setMainExpr(Math.random() < 0.5 ? 2 : 7, 3000); }
-        setTimeout(() => { sim.bleRssi = '-44'; syncStatsUI(); }, 2500);
-      } else if (type === 'away') {
-        sim.sleepBreathing = true; sim.targetBrightness = 55; sim.bleRssi = '-86'; sim.badgeText = 'SLEEPY · 离开工位'; syncStatsUI();
-        showSimQuip('主人走啦..省电打个盹~', 3200); setMainExpr(5, 4500);
-      } else if (type === 'welcome') {
-        sim.sleepBreathing = false; sim.targetBrightness = 255; sim.bleRssi = '-42'; sim.badgeText = 'HYPER · 欢迎回座'; syncStatsUI();
-        showSimQuip('你回来啦! 欢迎回座~', 3400); setMainExpr(7, 3200);
-      } else if (type === 'long_away') {
-        sim.sleepBreathing = false; sim.targetBrightness = 255; sim.bleRssi = '-42'; sim.badgeText = 'HYPER · 想你啦'; syncStatsUI();
-        showSimQuip('你去哪了嘛..好想你!', 2500); setMainExpr(11, 2500);
-        setTimeout(() => { showSimQuip('回来就好啦~ <3', 3000); setMainExpr(2, 3000); }, 2500);
-      } else if (type === 'ai_think') {
-        sim.sleepBreathing = false; sim.targetBrightness = 255; sim.badgeText = 'AI 联动 · 思考巡视中'; syncStatsUI();
-        showSimQuip('AI 思考中... 翻代码ing~', 3600); setMainExpr(8, 4000);
-      } else if (type === 'ai_ask') {
-        sim.sleepBreathing = false; sim.targetBrightness = 255; sim.badgeText = 'AI 联动 · 等你拍板!'; syncStatsUI();
-        showSimQuip('等你拍板决定方案!', 3800); setMainExpr(6, 1100); setTimeout(() => setMainExpr(12, 3200), 1050);
-      } else if (type === 'ai_done') {
-        sim.sleepBreathing = false; sim.targetBrightness = 255; sim.badgeText = 'AI 联动 · 任务完成!'; addLove(1); syncStatsUI();
-        showSimQuip('搞定啦! 快验收~', 3600); playEgg('flash', () => setMainExpr(7, 2800));
-      } else if (type === 'sitting') {
-        sim.sleepBreathing = false; sim.targetBrightness = 255; sim.badgeText = '健康管家 · 久坐提醒'; syncStatsUI();
-        showSimQuip('连坐 50 分钟啦! 快喝口水!', 3800); setMainExpr(9, 3200);
-      } else if (type === 'cpu_high') {
-        sim.tempStr = '59.5°C (偏热)'; sim.badgeText = '系统监控 · 负载飙高'; syncStatsUI();
-        showSimQuip('电脑风扇要起飞啦!', 3600); setMainExpr(10, 3200);
-        setTimeout(() => { sim.tempStr = '50.5°C (舒适)'; syncStatsUI(); }, 4000);
-      } else if (type === 'git_commit') {
-        addLove(1); sim.badgeText = 'Git 联动 · 提交成功'; syncStatsUI();
-        showSimQuip('代码提交成功! 赞~', 3400); setMainExpr(3, 3000);
-      } else if (type === 'pomo_demo') {
-        sim.sleepBreathing = false; sim.targetBrightness = 255; sim.pomoActive = true; sim.pomoStartMs = now; sim.pomoDurationMs = 10000;
-        sim.badgeText = 'FOCUS · 番茄钟倒计时'; syncStatsUI();
-        showSimQuip('专注开始! 看最底端绿条~', 3400); setMainExpr(14, 3500);
-      } else if (type === 'pomo_done') {
-        sim.badgeText = 'HYPER · 番茄钟达成!'; syncStatsUI();
-        showSimQuip('专注达成! 起来歇会儿~', 4000); playEgg('flash', () => setMainExpr(3, 2800));
-      } else if (type === 'nap_wake') {
-        sim.sleepBreathing = true; sim.targetBrightness = 85; sim.badgeText = 'SLEEPY · 呼吸灯小憩'; syncStatsUI();
-        showSimQuip('有点困..小憩三分钟~', 2800); setMainExpr(5, 3200);
-        setTimeout(() => {
-          sim.sleepBreathing = false; sim.targetBrightness = 255; sim.badgeText = 'HAPPY · 自主苏醒!'; syncStatsUI();
-          showSimQuip('睡饱啦! 满血复活~', 3200); setMainExpr(13, 2200); setTimeout(() => setMainExpr(7, 2800), 2100);
-        }, 3300);
-      } else if (type === 'night_mode') {
-        sim.sleepBreathing = false; sim.targetBrightness = 110; sim.badgeText = 'CALM · 23:30 护眼模式'; syncStatsUI();
-        showSimQuip('夜深啦早点睡~ 陪你收尾', 3800); setMainExpr(0, 3200);
-      } else if (type === 'cold_boot') {
-        sim.tempStr = '25.0°C (冷启动)'; sim.badgeText = 'HYPER · 冷开机测温'; syncStatsUI();
-        showSimQuip('刚开机有点凉飕飕~', 3400); playIdle('shiver');
-        setTimeout(() => { sim.tempStr = '50.5°C (舒适)'; syncStatsUI(); }, 3800);
+      switch (type) {
+        case 'pet':
+          sendDeviceCmd('MOCHI:PET', '隔空贴贴 (亲密度+1)');
+          if (!sim.online) { showOfflineQuip('贴贴~ <3'); setLocalExpr(7); }
+          break;
+        case 'away':
+          sendDeviceCmd('MOCHI:SCENE:AWAY', '离座打盹调暗背光');
+          if (!sim.online) { sim.targetBrightness = 55; showOfflineQuip('主人走啦..省电打个盹~'); setLocalExpr(5); }
+          break;
+        case 'welcome':
+          sendDeviceCmd('MOCHI:SCENE:WELCOME', '欢迎回座问候');
+          if (!sim.online) { sim.targetBrightness = 255; showOfflineQuip('你回来啦! 欢迎回座~'); setLocalExpr(7); }
+          break;
+        case 'long_away':
+          sendDeviceCmd('MOCHI:SCENE:LONG_AWAY', '久别重逢委屈落泪');
+          if (!sim.online) { showOfflineQuip('你去哪了嘛..好想你!'); setLocalExpr(11); }
+          break;
+        case 'ai_think':
+          sendDeviceCmd('MOCHI:AI:THINK:AI 思考中...', 'AI 思考巡视模式');
+          if (!sim.online) { showOfflineQuip('AI 思考中...'); setLocalExpr(8); }
+          break;
+        case 'ai_ask':
+          sendDeviceCmd('MOCHI:AI:ASK:等你拍板决定!', 'AI 待拍板提醒');
+          if (!sim.online) { showOfflineQuip('等你拍板决定!'); setLocalExpr(12); }
+          break;
+        case 'ai_done':
+          sendDeviceCmd('MOCHI:AI:DONE:搞定啦! 快验收~', 'AI 任务完成庆祝');
+          playLocalEgg('flash');
+          break;
+        case 'sitting':
+          sendDeviceCmd('MOCHI:SYS:SITTING:久坐啦! 快去喝口水!', '久坐傲娇提醒');
+          if (!sim.online) { showOfflineQuip('久坐啦! 快去喝口水!'); setLocalExpr(9); }
+          break;
+        case 'cpu_high':
+          sendDeviceCmd('MOCHI:SYS:CPU_HIGH:电脑风扇要起飞啦!', '高负载眩晕流汗');
+          if (!sim.online) { showOfflineQuip('电脑风扇要起飞啦!'); setLocalExpr(10); }
+          break;
+        case 'git_commit':
+          sendDeviceCmd('MOCHI:SYS:GIT_COMMIT:代码提交成功! 赞~', 'Git 提交庆祝');
+          if (!sim.online) { showOfflineQuip('代码提交成功! 赞~'); setLocalExpr(3); }
+          break;
+        case 'pomo_25':
+          sendDeviceCmd('MOCHI:POMO:25', '开启 25 分钟真机番茄钟');
+          if (!sim.online) { sim.pomoRemSec = 1500; sim.pomoTotalSec = 1500; showOfflineQuip('专注 25 分钟开始!'); setLocalExpr(14); }
+          break;
+        case 'pomo_demo':
+          sendDeviceCmd('MOCHI:POMO:DEMO', '10秒快进演示真机番茄钟');
+          if (!sim.online) { sim.pomoRemSec = 10; sim.pomoTotalSec = 10; showOfflineQuip('专注开始! 看底端绿条~'); setLocalExpr(14); }
+          break;
+        case 'pomo_stop':
+          sendDeviceCmd('MOCHI:POMO:STOP', '停止番茄钟');
+          if (!sim.online) { sim.pomoRemSec = 0; showOfflineQuip('番茄钟已结束~'); }
+          break;
+        case 'nap_wake':
+          sendDeviceCmd('MOCHI:SCENE:NAP_WAKE', '小憩呼吸灯 → 伸懒腰苏醒');
+          if (!sim.online) { showOfflineQuip('有点困..小憩一下~'); setLocalExpr(5); }
+          break;
+        case 'night_mode':
+          sendDeviceCmd('MOCHI:SCENE:NIGHT', '深夜护眼调暗模式');
+          if (!sim.online) { sim.targetBrightness = 95; showOfflineQuip('夜深啦早点睡~'); setLocalExpr(0); }
+          break;
       }
     };
 
     window.playMiniTheater = function() {
-      const sc = THEATER_SCRIPTS[Math.floor(Math.random() * THEATER_SCRIPTS.length)];
-      sim.theaterQueue = [sc[1], sc[2]]; showSimQuip(sc[0], 2200); setMainExpr(12, 2400);
+      sendDeviceCmd('MOCHI:THEATER', '三句连贯小剧场');
+      if (!sim.online) {
+        const sc = THEATER_SCRIPTS[Math.floor(Math.random() * THEATER_SCRIPTS.length)];
+        sim.theaterQueue = [sc[1], sc[2]]; showOfflineQuip(sc[0], 2200); setLocalExpr(12);
+      }
     };
 
-    window.playEgg = function(kind, onDone) {
+    function playLocalEgg(kind) {
       const start = performance.now();
-      document.getElementById('exprLabel').textContent = `🥚 彩蛋: ${kind.toUpperCase()}`;
       if (kind === 'zoom') {
         sim.customAnim = (ctx, now) => {
           const dt = now - start; ctx.fillStyle = C_ORANGE; ctx.fillRect(0, 0, DISP_W, 195);
@@ -614,7 +737,6 @@ python3 tools/mochi.py expr 0..14             # 指定切换任意一种表情</
           drawHearts(ctx, sc); return false;
         };
       } else if (kind === 'dance') {
-        showSimQuip('全表情串烧热舞~!', 2400);
         sim.customAnim = (ctx, now) => {
           const dt = now - start; ctx.fillStyle = C_ORANGE; ctx.fillRect(0, 0, DISP_W, 195);
           if (dt < 200) drawNormal(ctx, -14, 0, false); else if (dt < 400) drawNormal(ctx, 14, 0, false);
@@ -625,23 +747,27 @@ python3 tools/mochi.py expr 0..14             # 指定切换任意一种表情</
       } else if (kind === 'flash') {
         sim.customAnim = (ctx, now) => {
           const dt = now - start;
-          if (dt >= 750) { sim.bgCol = C_ORANGE; if (onDone) onDone(); return true; }
+          if (dt >= 750) { sim.bgCol = C_ORANGE; return true; }
           const p = Math.floor(dt / 120) % 3;
           sim.bgCol = p === 0 ? C_WHITE : (p === 1 ? C_BLACK : C_ORANGE);
           ctx.fillStyle = sim.bgCol; ctx.fillRect(0, 0, DISP_W, 195); drawNormal(ctx, 0, 0, false); return false;
         };
       } else if (kind === 'secret') {
-        showSimQuip('⊙_⊙ 被你发现了!', 2200);
         sim.customAnim = (ctx, now) => {
           const dt = now - start; ctx.fillStyle = C_ORANGE; ctx.fillRect(0, 0, DISP_W, 195);
           if (dt < 950) { drawSurprise(ctx, 0, 0, C_ORANGE); return false; } return true;
         };
       }
+    }
+
+    window.playEgg = function(kind, id) {
+      sendDeviceCmd(`MOCHI:EGG:${id}`, `彩蛋 ${kind.toUpperCase()}`);
+      playLocalEgg(kind);
     };
 
-    window.playIdle = function(kind) {
+    window.playIdle = function(kind, id) {
+      sendDeviceCmd(`MOCHI:IDLE:${id}`, `微动作 ${kind}`);
       const start = performance.now();
-      document.getElementById('exprLabel').textContent = `👀 微动作: ${kind}`;
       sim.customAnim = (ctx, now) => {
         const dt = now - start; ctx.fillStyle = C_ORANGE; ctx.fillRect(0, 0, DISP_W, 195);
         if (kind === 'blink') { if (dt < 120) drawNormal(ctx, 0, 0, true); else if (dt < 300) drawNormal(ctx, 0, 0, false); else return true; }
@@ -657,7 +783,10 @@ python3 tools/mochi.py expr 0..14             # 指定切换任意一种表情</
     window.sendCustomQuip = function() {
       const input = document.getElementById('customSayInput');
       const val = (input.value || '').trim();
-      if (!val) return; showSimQuip(val, 4200); input.value = '';
+      if (!val) return;
+      sendDeviceCmd(`MOCHI:SAY:${val}`, `发送气泡 "${val}"`);
+      if (!sim.online) showOfflineQuip(val, 4000);
+      input.value = '';
     };
     document.getElementById('customSayInput').addEventListener('keydown', e => { if (e.key === 'Enter') window.sendCustomQuip(); });
 
@@ -667,8 +796,8 @@ python3 tools/mochi.py expr 0..14             # 指定切换任意一种表情</
       const card = document.createElement('button');
       card.type = 'button'; card.id = `expr-card-${item.id}`; card.className = 'expr-card' + (item.id === 7 ? ' active' : '');
       card.onclick = () => {
-        sim.sleepBreathing = (item.id === 5); sim.targetBrightness = (item.id === 5) ? 95 : 255;
-        setMainExpr(item.id, 3400); showSimQuip(`${item.name} (${item.en})`, 2600);
+        setLocalExpr(item.id, 3400);
+        sendDeviceCmd(`MOCHI:EXPR:${item.id}`, `切换真机表情 #${String(item.id).padStart(2, '0')} ${item.name}`);
       };
       card.innerHTML = `<div style="width:100%;display:flex;justify-content:space-between;align-items:center;font-size:12px;">` +
         `<span class="muted" style="font-family:monospace;">#${String(item.id).padStart(2, '0')}</span>` +
@@ -686,14 +815,14 @@ python3 tools/mochi.py expr 0..14             # 指定切换任意一种表情</
         if (sim.customAnim(mainCtx, now)) { sim.customAnim = null; sim.exprStartMs = now; }
       } else {
         if (now - sim.exprStartMs >= sim.exprDurationMs) {
-          if (document.getElementById('autoCycleToggle').checked) setMainExpr((sim.exprId + 1) % EXPRESSIONS.length, 3200);
+          if (!sim.online) setLocalExpr((sim.exprId + 1) % EXPRESSIONS.length, 3200);
           else sim.exprStartMs = now;
         }
         renderExpressionFrame(mainCtx, sim.exprId, Math.min(1, (now - sim.exprStartMs) / sim.exprDurationMs), sim.bgCol);
       }
 
       mainCtx.fillStyle = sim.bgCol; mainCtx.fillRect(0, 195, DISP_W, 45);
-      if (sim.quipText && now < sim.quipUntilMs) {
+      if (sim.quipText && (sim.online || now < sim.quipUntilMs)) {
         mainCtx.font = '15px ui-monospace, SFMono-Regular, "PingFang SC", sans-serif';
         const boxW = Math.min(234, Math.min(212, Math.ceil(mainCtx.measureText(sim.quipText).width)) + 20);
         const boxX = Math.round((DISP_W - boxW) / 2);
@@ -701,24 +830,18 @@ python3 tools/mochi.py expr 0..14             # 指定切换任意一种表情</
         mainCtx.beginPath(); mainCtx.roundRect(boxX, 200, boxW, 24, 5); mainCtx.stroke();
         mainCtx.fillStyle = C_WHITE; mainCtx.textBaseline = 'middle'; mainCtx.textAlign = 'center';
         mainCtx.fillText(sim.quipText, DISP_W / 2, 213);
-      } else if (sim.quipText && now >= sim.quipUntilMs) {
+      } else if (!sim.online && sim.quipText && now >= sim.quipUntilMs) {
         sim.quipText = '';
-        if (sim.theaterQueue.length > 0) showSimQuip(sim.theaterQueue.shift(), 2300);
+        if (sim.theaterQueue.length > 0) showOfflineQuip(sim.theaterQueue.shift(), 2300);
       }
 
-      if (sim.pomoActive) {
-        const el = now - sim.pomoStartMs;
-        if (el >= sim.pomoDurationMs) { sim.pomoActive = false; addLove(3); triggerScenario('pomo_done'); }
-        else {
-          const remW = Math.max(2, Math.round(DISP_W * (1 - el / sim.pomoDurationMs)));
-          mainCtx.fillStyle = C_GREEN; mainCtx.fillRect(0, 237, remW, 3);
-          mainCtx.fillStyle = C_DARKBG; mainCtx.fillRect(remW, 237, DISP_W - remW, 3);
-        }
+      if (sim.pomoRemSec > 0 && sim.pomoTotalSec > 0) {
+        const remW = Math.max(2, Math.round(DISP_W * (sim.pomoRemSec / sim.pomoTotalSec)));
+        mainCtx.fillStyle = C_GREEN; mainCtx.fillRect(0, 237, remW, 3);
+        mainCtx.fillStyle = C_DARKBG; mainCtx.fillRect(remW, 237, DISP_W - remW, 3);
       }
 
-      let goal = sim.targetBrightness;
-      if (sim.sleepBreathing) goal = Math.max(40, Math.min(135, goal + Math.sin(now * 0.0025) * 28));
-      sim.currentBrightness += (goal - sim.currentBrightness) * 0.12;
+      sim.currentBrightness += (sim.targetBrightness - sim.currentBrightness) * 0.16;
       overlayEl.style.opacity = (((255 - sim.currentBrightness) / 255) * 0.72).toFixed(3);
       document.getElementById('pwmLabel').textContent = `PWM 背光: ${Math.round((sim.currentBrightness / 255) * 100)}%`;
 
@@ -728,6 +851,9 @@ python3 tools/mochi.py expr 0..14             # 指定切换任意一种表情</
       }
       requestAnimationFrame(tick);
     }
+
+    pollHardware();
+    setInterval(pollHardware, 900);
     requestAnimationFrame(tick);
   </script>
 </body>

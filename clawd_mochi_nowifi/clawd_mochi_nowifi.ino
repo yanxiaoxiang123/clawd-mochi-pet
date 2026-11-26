@@ -53,12 +53,14 @@ uint16_t C_ORANGE, C_DARKBG, C_MUTED, C_GREEN, C_TEAR, C_BUBBLE_BORDER;
 
 uint16_t   animBgColor       = 0;
 uint8_t    animSpeed         = 2;   // 1=slow, 2=normal, 3=fast
+uint8_t    currentExprId     = DEMO_HAPPY_ARC;
 uint8_t    currentBrightness = 255;
 uint8_t    targetBrightness  = 255;
 uint32_t   lastBrightTickMs  = 0;
 
 MochiEvent pendingEvent      = EVT_NONE;
 uint8_t    pendingCustomExpr = 0;
+uint8_t    pendingSubId      = 0;
 AiMode     aiActiveMode      = AI_MODE_NONE;
 uint32_t   aiModeSinceMs     = 0;
 
@@ -163,6 +165,7 @@ inline void    clearEyeCanvas()  { tft.fillRect(0, 0, DISP_W, 195, animBgColor);
 
 // 0. NORMAL EYES (square blocks)
 void drawNormalEyesOffset(int16_t ox, int16_t oy, bool blink) {
+  currentExprId = DEMO_NORMAL;
   clearEyeCanvas();
   const int16_t lx = eyeLX(ox), rx = eyeRX(ox), ey = eyeY() + oy;
   if (!blink) {
@@ -193,6 +196,7 @@ void drawChevron(int16_t cx, int16_t cy, int16_t arm, int16_t reach,
 }
 
 void drawSquishEyes(bool closed = false) {
+  currentExprId = DEMO_SQUISH;
   clearEyeCanvas();
   const int16_t lx = eyeLX(0), rx = eyeRX(0), cy = eyeCY();
   if (!closed) {
@@ -219,6 +223,7 @@ void drawHeartEyeAt(int16_t cx, int16_t cy, uint16_t col, float scale) {
 }
 
 void drawHeartEyes(float scale) {
+  currentExprId = DEMO_HEART;
   clearEyeCanvas();
   drawHeartEyeAt(eyeLX(0) + EYE_W / 2, eyeCY(), C_BLACK, scale);
   drawHeartEyeAt(eyeRX(0) + EYE_W / 2, eyeCY(), C_BLACK, scale);
@@ -247,6 +252,7 @@ void drawSparkleAt(int16_t cx, int16_t cy, uint16_t col, float scale, bool rotat
 }
 
 void drawSparkleEyes(float scale, bool rotated) {
+  currentExprId = DEMO_SPARKLE;
   clearEyeCanvas();
   drawSparkleAt(eyeLX(0) + EYE_W / 2, eyeCY(), C_BLACK, scale, rotated);
   drawSparkleAt(eyeRX(0) + EYE_W / 2, eyeCY(), C_BLACK, scale, rotated);
@@ -254,6 +260,7 @@ void drawSparkleEyes(float scale, bool rotated) {
 
 // 4. WINK
 void drawWinkEyes(float progress) {
+  currentExprId = DEMO_WINK;
   clearEyeCanvas();
   const int16_t lx = eyeLX(0), rx = eyeRX(0), cy = eyeCY();
   int16_t leftH = (int16_t)roundf(EYE_H * (1.0f - progress));
@@ -275,6 +282,7 @@ void drawZAt(int16_t x, int16_t y, uint16_t col) {
 }
 
 void drawSleepyEyes(int16_t eyeH, int8_t zFrame) {
+  currentExprId = DEMO_SLEEPY;
   clearEyeCanvas();
   const int16_t lx = eyeLX(0), rx = eyeRX(0), cy = eyeCY();
   tft.fillRect(lx, cy - eyeH / 2, EYE_W, eyeH, C_BLACK);
@@ -289,6 +297,7 @@ void drawSleepyEyes(int16_t eyeH, int8_t zFrame) {
 
 // 6. SURPRISE (⊙ ⊙ wide double ring)
 void drawSurpriseEyesJitter(int16_t px = 0, int16_t py = 0) {
+  currentExprId = DEMO_SURPRISE;
   clearEyeCanvas();
   const int16_t lcx = eyeLX(0) + EYE_W / 2;
   const int16_t rcx = eyeRX(0) + EYE_W / 2;
@@ -313,6 +322,7 @@ void drawHappyArcAt(int16_t cx, int16_t cy) {
 }
 
 void drawHappyArcEyes(int16_t bounceY = 0) {
+  currentExprId = DEMO_HAPPY_ARC;
   clearEyeCanvas();
   const int16_t cy = eyeCY() + bounceY;
   drawHappyArcAt(eyeLX(0) + EYE_W / 2, cy);
@@ -321,6 +331,7 @@ void drawHappyArcEyes(int16_t bounceY = 0) {
 
 // 8. THINKING / AI CODING (scanning gaze + animated 3 thinking dots above)
 void drawThinkingEyes(int16_t ox, uint8_t dotStep) {
+  currentExprId = DEMO_THINKING;
   clearEyeCanvas();
   const int16_t lx = eyeLX(ox), rx = eyeRX(ox), cy = eyeCY() + 4;
   const int16_t h  = 42;
@@ -338,6 +349,7 @@ void drawThinkingEyes(int16_t ox, uint8_t dotStep) {
 
 // 9. ANGRY / TSUNDERE (\ / slanted brows + cute comic vein)
 void drawAngryEyes(int16_t shakeX = 0) {
+  currentExprId = DEMO_ANGRY;
   clearEyeCanvas();
   const int16_t lx = eyeLX(shakeX), rx = eyeRX(shakeX), ey = eyeY() + 4;
   tft.fillRect(lx, ey, EYE_W, 50, C_BLACK);
@@ -355,6 +367,7 @@ void drawAngryEyes(int16_t shakeX = 0) {
 
 // 10. DIZZY / OVERLOAD (X X cross eyes + sweat drop)
 void drawDizzyEyes(bool altPhase) {
+  currentExprId = DEMO_DIZZY;
   clearEyeCanvas();
   const int16_t lcx = eyeLX(0) + EYE_W / 2;
   const int16_t rcx = eyeRX(0) + EYE_W / 2;
@@ -374,6 +387,7 @@ void drawDizzyEyes(bool altPhase) {
 
 // 11. CRY / MISSED YOU (T T droopy eyes + falling blue tear)
 void drawCryEyes(int16_t tearDropY) {
+  currentExprId = DEMO_CRY;
   clearEyeCanvas();
   const int16_t lx = eyeLX(0), rx = eyeRX(0), cy = eyeCY();
   // Sad horizontal lids
@@ -386,6 +400,7 @@ void drawCryEyes(int16_t tearDropY) {
 
 // 12. CURIOUS / QUESTION (o O asymmetric eyes + pixel ?)
 void drawCuriousEyes(int16_t tiltOx, bool showQ) {
+  currentExprId = DEMO_CURIOUS;
   clearEyeCanvas();
   const int16_t lx = eyeLX(tiltOx), rx = eyeRX(tiltOx), cy = eyeCY();
   // Left eye smaller & raised brow, right eye big & curious
@@ -403,6 +418,7 @@ void drawCuriousEyes(int16_t tiltOx, bool showQ) {
 
 // 13. YAWN / STRETCH (eyes squeeze up high then relax)
 void drawYawnEyes(int16_t oy, int16_t eyeH) {
+  currentExprId = DEMO_YAWN;
   clearEyeCanvas();
   const int16_t lx = eyeLX(0), rx = eyeRX(0), cy = eyeCY() + oy;
   tft.fillRect(lx - 2, cy - eyeH / 2, EYE_W + 4, eyeH, C_BLACK);
@@ -411,6 +427,7 @@ void drawYawnEyes(int16_t oy, int16_t eyeH) {
 
 // 14. FOCUS / LASER (determined narrow visor eyes)
 void drawFocusEyes(int16_t ox = 0) {
+  currentExprId = DEMO_FOCUS;
   clearEyeCanvas();
   const int16_t lx = eyeLX(ox), rx = eyeRX(ox), cy = eyeCY();
   tft.fillRect(lx - 3, cy - 11, EYE_W + 6, 22, C_BLACK);
@@ -692,6 +709,36 @@ void handlePendingEvent() {
 
     case EVT_CUSTOM_EXPR: {
       playExpressionById(pendingCustomExpr);
+      break;
+    }
+
+    case EVT_CUSTOM_EGG: {
+      if (pendingSubId == 0)      eggZoom();
+      else if (pendingSubId == 1) { showQuip("全表情串烧热舞~!", 2400); eggDance(); }
+      else if (pendingSubId == 2) eggFlash();
+      else                        { showQuip("被你发现了!", 2200); eggSecret(); }
+      break;
+    }
+
+    case EVT_CUSTOM_IDLE: {
+      if (pendingSubId == 0)      idleBlink();
+      else if (pendingSubId == 1) idleLookLeft();
+      else if (pendingSubId == 2) idleLookRight();
+      else if (pendingSubId == 3) idleLookUp();
+      else if (pendingSubId == 4) idleBreathe();
+      else                        idleShiver();
+      break;
+    }
+
+    case EVT_NAP_DEMO: {
+      currentMood = MOOD_SLEEPY;
+      setTargetBrightness(80);
+      showQuip("有点困..小憩一下~", 2800);
+      animSleepy();
+      energizeCycle(false);
+      showQuip("睡饱啦! 满血复活~", 3000);
+      animYawnStretch();
+      animHappyArcEyes();
       break;
     }
 

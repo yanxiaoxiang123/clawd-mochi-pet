@@ -1,32 +1,18 @@
 #!/usr/bin/env python3
 """
-Clawd Mochi Mac Companion CLI & Background Daemon (tools/mochi.py)
+Clawd Mochi Mac Companion CLI, Background Daemon & Real-Time Web Console Server (tools/mochi.py)
 
-Zero-conflict architecture:
-  - `daemon` holds the USB serial connection (/dev/cu.usbmodem*) without toggling
-    RTS/DTR reset lines, syncs wall-clock time, tracks macOS keyboard/mouse idle &
-    continuous sitting time, monitors CPU load spikes, and exposes a local Unix
-    socket (/tmp/clawd-mochi.sock) so CLI commands run in <5ms with zero port conflicts.
-  - If `daemon` is not running, CLI commands talk directly to `/dev/cu.usbmodem*`.
-
-Usage:
-  python3 tools/mochi.py status
-  python3 tools/mochi.py pet
-  python3 tools/mochi.py say "喝口水再继续写~"
-  python3 tools/mochi.py focus 25       # start 25-min Pomodoro (3px bar at bottom)
-  python3 tools/mochi.py focus stop
-  python3 tools/mochi.py ai think [msg] # AI started thinking / running tools
-  python3 tools/mochi.py ai done  [msg] # AI finished task
-  python3 tools/mochi.py ai ask   [msg] # AI waiting for approval
-  python3 tools/mochi.py expr <0..14>
-  python3 tools/mochi.py theater
-  python3 tools/mochi.py bind-ble       # calibrate Apple Watch / iPhone tap-to-pet
-  python3 tools/mochi.py daemon         # run background Mac companion loop
-  python3 tools/mochi.py stop-daemon    # cleanly stop running daemon (e.g. before flashing)
+Features:
+  - Holds USB serial (/dev/cu.usbmodem*) open with zero chip resets (DTR=False, RTS=False, ~HUPCL).
+  - Syncs Mac wall-clock time, tracks screen-lock / sitting duration & CPU spikes.
+  - Exposes both local Unix socket (/tmp/clawd-mochi.sock) AND real-time HTTP server
+    at http://127.0.0.1:18765 (serving preview.html + /api/status + /api/cmd).
 """
 
 import datetime
 import glob
+import json
+import mimetypes
 import os
 import re
 import signal
@@ -35,11 +21,15 @@ import subprocess
 import sys
 import threading
 import time
-from typing import Optional
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import Any, Dict, Optional
+from urllib.parse import urlparse
 
 SOCK_PATH = "/tmp/clawd-mochi.sock"
 PID_PATH = "/tmp/clawd-mochi.pid"
 BAUD_RATE = 115200
+HTTP_PORT = int(os.environ.get("MOCHI_HTTP_PORT", "18765"))
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def find_serial_port() -> Optional[str]:
@@ -63,11 +53,9 @@ def open_serial_no_reset(port: str, timeout: float = 1.2):
     ser.write_timeout = 1.2
     ser.dsrdtr = False
     ser.rtscts = False
-    # ESP32-C3 USB-Serial/JTAG: keep DTR=False, RTS=False so we never enter DOWNLOAD mode
     ser.dtr = False
     ser.rts = False
     ser.open()
-    # Prevent macOS HUPCL from dropping DTR on close (which triggers ESP32-C3 USB_UART_CHIP_RESET)
     try:
         fd = ser.fileno()
         attrs = termios.tcgetattr(fd)
@@ -79,7 +67,6 @@ def open_serial_no_reset(port: str, timeout: float = 1.2):
 
 
 def is_macos_screen_locked() -> bool:
-    """Return True if macOS session screen is currently locked."""
     try:
         out = subprocess.check_output(
             ["ioreg", "-n", "Root", "-d1", "-a"],
@@ -87,9 +74,7 @@ def is_macos_screen_locked() -> bool:
             text=True,
             timeout=2.0,
         )
-        if "<key>CGSSessionScreenIsLocked</key>\n\t\t<true/>" in out or (
-            "CGSSessionScreenIsLocked" in out and "<true/>" in out.split("CGSSessionScreenIsLocked", 1)[1][:80]
-        ):
+        if "CGSSessionScreenIsLocked" in out and "<true/>" in out.split("CGSSessionScreenIsLocked", 1)[1][:80]:
             return True
     except Exception:
         pass
@@ -97,7 +82,6 @@ def is_macos_screen_locked() -> bool:
 
 
 def get_macos_hid_idle_seconds() -> int:
-    """Return seconds since last macOS keyboard/mouse/trackpad event via IOHIDSystem."""
     try:
         out = subprocess.check_output(
             ["ioreg", "-c", "IOHIDSystem", "-d", "4"],
@@ -111,6 +95,40 @@ def get_macos_hid_idle_seconds() -> int:
     except Exception:
         pass
     return 0
+
+
+def parse_status_line(resp: str, port: Optional[str] = None) -> Dict[str, Any]:
+    if not resp or not resp.startswith("OK:STATUS:"):
+        return {"online": False, "port": port, "raw": resp}
+    body = resp[len("OK:STATUS:") :]
+    quip = ""
+    if "|quip=" in body:
+        body, quip = body.split("|quip=", 1)
+    kv: Dict[str, str] = {}
+    for item in body.split(","):
+        if "=" in item:
+            k, v = item.split("=", 1)
+            kv[k] = v
+    return {
+        "online": True,
+        "port": port or find_serial_port() or "",
+        "mood": kv.get("mood", "HAPPY"),
+        "expr": int(kv.get("expr", "0")),
+        "bright": int(kv.get("bright", "255")),
+        "boots": int(kv.get("boots", "1")),
+        "mins": int(kv.get("mins", "0")),
+        "love": int(kv.get("love", "0")),
+        "lv": int(kv.get("lv", "1")),
+        "temp": float(kv.get("temp", "25.0")),
+        "rssi": int(kv.get("rssi", "-100")),
+        "present": kv.get("present", "1") == "1",
+        "pomo": int(kv.get("pomo", "0")),
+        "pomototal": int(kv.get("pomototal", "0")),
+        "ai": int(kv.get("ai", "0")),
+        "clock": kv.get("clock", "12:00"),
+        "quip": quip,
+        "ts": time.time(),
+    }
 
 
 def send_via_daemon_socket(raw_cmd: str, timeout: float = 3.5) -> Optional[str]:
@@ -149,12 +167,11 @@ def send_direct_serial(raw_cmd: str, wait_reply_sec: float = 1.0) -> str:
         ser.close()
 
 
-def ensure_daemon_running(wait_sec: float = 5.0) -> bool:
+def ensure_daemon_running(wait_sec: float = 5.5) -> bool:
     if send_via_daemon_socket("MOCHI:STATUS", timeout=2.5) is not None:
         return True
     if not find_serial_port():
         return False
-    # Auto-start background daemon so ESP32-C3 USB-JTAG port stays open with zero resets
     with open("/tmp/clawd-mochi.log", "ab") as logf:
         subprocess.Popen(
             [sys.executable, os.path.abspath(__file__), "daemon"],
@@ -189,8 +206,11 @@ class MochiDaemon:
         self.running = True
         self.lock = threading.Lock()
         self.ser = None
+        self.port_name: Optional[str] = None
+        self.latest_status: Dict[str, Any] = {"online": False}
         self.last_time_sync = 0.0
         self.last_presence_sync = 0.0
+        self.last_status_poll = 0.0
         self.last_cpu_alert = 0.0
         self.last_sitting_alert = 0.0
         self.active_streak_start = time.monotonic()
@@ -201,29 +221,34 @@ class MochiDaemon:
             return True
         port = find_serial_port()
         if not port:
+            self.port_name = None
             return False
         try:
             self.ser = open_serial_no_reset(port, timeout=0.35)
-            # Allow ESP32-C3 setup() + BLE init (~2.2s) to finish if USB attach triggered boot
+            self.port_name = port
             time.sleep(2.5)
             self.ser.reset_input_buffer()
             return True
         except Exception:
             self.ser = None
+            self.port_name = None
             return False
 
     def send_locked(self, raw_cmd: str) -> str:
         with self.lock:
             if not self.ensure_serial():
+                self.latest_status = {"online": False}
                 return "ERR:NO_DEVICE"
             try:
                 self.ser.reset_input_buffer()
                 self.ser.write((raw_cmd.strip() + "\n").encode("utf-8"))
                 self.ser.flush()
-                deadline = time.monotonic() + 0.8
+                deadline = time.monotonic() + 0.85
                 while time.monotonic() < deadline:
                     line = self.ser.readline().decode("utf-8", errors="replace").strip()
                     if line.startswith("OK:"):
+                        if line.startswith("OK:STATUS:"):
+                            self.latest_status = parse_status_line(line, self.port_name)
                         return line
                 return "OK:SENT"
             except Exception as exc:
@@ -232,7 +257,14 @@ class MochiDaemon:
                 except Exception:
                     pass
                 self.ser = None
+                self.latest_status = {"online": False}
                 return f"ERR:{exc}"
+
+    def refresh_status(self) -> Dict[str, Any]:
+        resp = self.send_locked("MOCHI:STATUS")
+        if resp.startswith("OK:STATUS:"):
+            return self.latest_status
+        return {"online": False, "error": resp}
 
     def socket_worker(self, server_sock: socket.socket):
         while self.running:
@@ -257,6 +289,99 @@ class MochiDaemon:
                     except Exception:
                         pass
 
+    def build_http_server(self) -> Optional[ThreadingHTTPServer]:
+        daemon_ref = self
+
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, _fmt, *_args):
+                pass
+
+            def _send_json(self, payload: Any, code: int = 200):
+                raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+                self.send_response(code)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Content-Length", str(len(raw)))
+                self.end_headers()
+                self.wfile.write(raw)
+
+            def do_OPTIONS(self):
+                self.send_response(204)
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+                self.send_header("Access-Control-Allow-Headers", "Content-Type")
+                self.end_headers()
+
+            def do_GET(self):
+                parsed = urlparse(self.path)
+                path = parsed.path
+
+                if path == "/api/status":
+                    # If status older than 0.65s, refresh from device
+                    st = daemon_ref.latest_status
+                    if not st.get("online") or (time.time() - st.get("ts", 0) > 0.65):
+                        st = daemon_ref.refresh_status()
+                    self._send_json(st)
+                    return
+
+                if path in ("/", "/preview.htm", "/preview.html"):
+                    target = os.path.join(REPO_ROOT, "preview.html")
+                else:
+                    rel = os.path.normpath(path.lstrip("/"))
+                    if rel.startswith(".."):
+                        self.send_error(403)
+                        return
+                    target = os.path.join(REPO_ROOT, rel)
+
+                if not os.path.isfile(target):
+                    self.send_error(404)
+                    return
+
+                ctype, _ = mimetypes.guess_type(target)
+                if not ctype:
+                    ctype = "application/octet-stream"
+                if ctype.startswith("text/") or ctype == "application/javascript":
+                    ctype += "; charset=utf-8"
+                with open(target, "rb") as f:
+                    content = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", ctype)
+                self.send_header("Cache-Control", "no-cache")
+                self.send_header("Content-Length", str(len(content)))
+                self.end_headers()
+                self.wfile.write(content)
+
+            def do_POST(self):
+                parsed = urlparse(self.path)
+                if parsed.path != "/api/cmd":
+                    self.send_error(404)
+                    return
+                length = int(self.headers.get("Content-Length", "0"))
+                raw_body = self.rfile.read(length).decode("utf-8", errors="replace")
+                try:
+                    req = json.loads(raw_body) if raw_body else {}
+                except Exception:
+                    self._send_json({"ok": False, "error": "invalid json"}, 400)
+                    return
+                cmd = str(req.get("cmd", "")).strip()
+                if not cmd.startswith("MOCHI:"):
+                    self._send_json({"ok": False, "error": "cmd must start with MOCHI:"}, 400)
+                    return
+                reply = daemon_ref.send_locked(cmd)
+                # Give firmware 45ms to enter the new event/expression so status reflects it immediately
+                time.sleep(0.045)
+                st = daemon_ref.refresh_status()
+                self._send_json({"ok": reply.startswith("OK:"), "reply": reply, "status": st})
+
+        try:
+            ThreadingHTTPServer.allow_reuse_address = True
+            httpd = ThreadingHTTPServer(("127.0.0.1", HTTP_PORT), Handler)
+            return httpd
+        except Exception as exc:
+            print(f"[mochi-daemon] HTTP 端口 {HTTP_PORT} 启动失败: {exc}")
+            return None
+
     def run(self):
         if os.path.exists(SOCK_PATH):
             if send_via_daemon_socket("MOCHI:STATUS") is not None:
@@ -267,13 +392,19 @@ class MochiDaemon:
         with open(PID_PATH, "w", encoding="utf-8") as f:
             f.write(str(os.getpid()))
 
-        # Open & stabilize serial port BEFORE exposing UNIX socket so first client gets <10ms reply
         self.ensure_serial()
+        self.refresh_status()
 
         server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         server.settimeout(1.0)
         server.bind(SOCK_PATH)
         server.listen(8)
+
+        httpd = self.build_http_server()
+        if httpd is not None:
+            ht = threading.Thread(target=httpd.serve_forever, daemon=True)
+            ht.start()
+            print(f"[mochi-daemon] 实时控制台已就绪: http://127.0.0.1:{HTTP_PORT}/preview.html")
 
         def handle_sig(_signum, _frame):
             self.running = False
@@ -291,6 +422,11 @@ class MochiDaemon:
             while self.running:
                 now_mono = time.monotonic()
 
+                # 0. Poll live hardware status every 1.0s so web UI mirrors device smoothly
+                if now_mono - self.last_status_poll >= 1.0:
+                    self.last_status_poll = now_mono
+                    self.refresh_status()
+
                 # 1. Sync wall-clock time every 60s
                 if now_mono - self.last_time_sync >= 60.0 or self.last_time_sync == 0.0:
                     dt = datetime.datetime.now()
@@ -298,7 +434,7 @@ class MochiDaemon:
                     if res.startswith("OK:"):
                         self.last_time_sync = now_mono
 
-                # 2. Check Mac presence (screen lock / 25m deep idle) & continuous sitting every 20s
+                # 2. Check Mac presence & continuous sitting every 20s
                 if now_mono - self.last_presence_sync >= 20.0 or self.last_presence_sync == 0.0:
                     self.last_presence_sync = now_mono
                     idle_sec = get_macos_hid_idle_seconds()
@@ -307,7 +443,6 @@ class MochiDaemon:
                         if self.was_away and idle_sec < 60:
                             self.was_away = False
                             self.active_streak_start = now_mono
-                        # Send active presence (<180 clamp so firmware keeps ownerPresent=true while reading/watching)
                         self.send_locked(f"MOCHI:PRESENCE:ACTIVE:{min(idle_sec, 120)}")
 
                         if idle_sec < 240:
@@ -321,14 +456,12 @@ class MochiDaemon:
                                     f"MOCHI:SYS:SITTING:连坐 {int(sitting_min)} 分钟啦! 喝口水~"
                                 )
                         else:
-                            # Took a >4 min break from typing -> reset sitting timer
                             self.active_streak_start = now_mono
                     else:
                         self.was_away = True
                         self.active_streak_start = now_mono
                         self.send_locked(f"MOCHI:PRESENCE:IDLE:{max(idle_sec, 600)}")
 
-                    # 3. Check Mac CPU load spike
                     try:
                         load1, _, _ = os.getloadavg()
                         if (
@@ -340,8 +473,14 @@ class MochiDaemon:
                     except Exception:
                         pass
 
-                time.sleep(2.0)
+                time.sleep(0.5)
         finally:
+            if httpd is not None:
+                try:
+                    httpd.shutdown()
+                    httpd.server_close()
+                except Exception:
+                    pass
             server.close()
             if self.ser is not None:
                 try:
@@ -358,23 +497,20 @@ class MochiDaemon:
 
 
 def format_status(resp: str) -> str:
-    if not resp.startswith("OK:STATUS:"):
+    st = parse_status_line(resp)
+    if not st.get("online"):
         return resp
-    kv = {}
-    for item in resp[len("OK:STATUS:") :].split(","):
-        if "=" in item:
-            k, v = item.split("=", 1)
-            kv[k] = v
-    pomo_s = int(kv.get("pomo", "0"))
+    pomo_s = st["pomo"]
     pomo_str = f"{pomo_s // 60}分{pomo_s % 60:02d}秒" if pomo_s > 0 else "未开启"
-    present_str = "在桌前" if kv.get("present") == "1" else "离开工位"
+    present_str = "在桌前" if st["present"] else "离开工位"
+    quip_str = f' | 当前气泡: "{st["quip"]}"' if st.get("quip") else ""
     return (
         f"小螃蟹状态:\n"
-        f"  当前心情: {kv.get('mood')}  |  在岗状态: {present_str}\n"
-        f"  见面次数: 第 {kv.get('boots')} 次  |  累计陪伴: {kv.get('mins')} 分钟\n"
-        f"  亲密度  : Lv.{kv.get('lv')} (爱心值 {kv.get('love')})\n"
-        f"  芯片温度: {kv.get('temp')} °C  |  最近蓝牙信号: {kv.get('rssi')} dBm\n"
-        f"  专注番茄: {pomo_str}  |  同步时间: {kv.get('clock')}"
+        f"  当前心情: {st['mood']} (表情 #{st['expr']:02d}, 背光 {round(st['bright']*100/255)}%)  |  在岗状态: {present_str}\n"
+        f"  见面次数: 第 {st['boots']} 次  |  累计陪伴: {st['mins']} 分钟\n"
+        f"  亲密度  : Lv.{st['lv']} (爱心值 {st['love']})\n"
+        f"  芯片温度: {st['temp']:.1f} °C  |  最近蓝牙信号: {st['rssi']} dBm\n"
+        f"  专注番茄: {pomo_str}  |  同步时间: {st['clock']}{quip_str}"
     )
 
 
@@ -408,6 +544,8 @@ def main():
         sub = args[0].lower() if args else "25"
         if sub in ("stop", "off", "0"):
             print(send_command("MOCHI:POMO:STOP"))
+        elif sub == "demo":
+            print(send_command("MOCHI:POMO:DEMO"))
         else:
             print(send_command(f"MOCHI:POMO:{int(sub)}"))
     elif action == "ai":

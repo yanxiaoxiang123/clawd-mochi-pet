@@ -45,7 +45,10 @@ enum MochiEvent : uint8_t {
   EVT_CPU_HIGH     = 9,   // Mac CPU load high
   EVT_SITTING_LONG = 10,  // Owner sitting continuously too long
   EVT_GIT_COMMIT   = 11,  // Git commit celebration
-  EVT_CUSTOM_EXPR  = 12   // Explicit expression trigger via USB
+  EVT_CUSTOM_EXPR  = 12,  // Explicit expression trigger via USB
+  EVT_CUSTOM_EGG   = 13,  // Explicit easter egg trigger (0..3)
+  EVT_CUSTOM_IDLE  = 14,  // Explicit idle micro-animation trigger (0..5)
+  EVT_NAP_DEMO     = 15   // Demo nap -> stretch wake sequence
 };
 
 enum AiMode : uint8_t {
@@ -55,8 +58,11 @@ enum AiMode : uint8_t {
 
 // Shared state defined across modules
 extern Mood       currentMood;
+extern uint8_t    currentExprId;
+extern uint8_t    currentBrightness;
 extern MochiEvent pendingEvent;
 extern uint8_t    pendingCustomExpr;
+extern uint8_t    pendingSubId;
 extern AiMode     aiActiveMode;
 extern uint32_t   aiModeSinceMs;
 

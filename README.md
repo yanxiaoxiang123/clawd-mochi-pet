@@ -47,7 +47,7 @@
 When plugged into your Mac via USB-C:
 
 ```bash
-# Start background companion daemon (syncs clock, sitting health, CPU load & multiplexes CLI)
+# Start background companion daemon (syncs clock, sitting health, CPU load, CLI & live web console at http://127.0.0.1:18765/preview.html)
 python3 tools/mochi.py daemon
 
 # Quick interactive commands (zero serial conflict even while daemon runs!)

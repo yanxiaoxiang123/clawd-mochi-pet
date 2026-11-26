@@ -3,11 +3,15 @@
 //   MOCHI:STATUS
 //   MOCHI:PET
 //   MOCHI:SAY:<text>
+//   MOCHI:THEATER
 //   MOCHI:EXPR:<0..14>
+//   MOCHI:EGG:<0..3>
+//   MOCHI:IDLE:<0..5>
+//   MOCHI:SCENE:<AWAY|WELCOME|LONG_AWAY|NAP_WAKE|NIGHT|COLD>
 //   MOCHI:TIME:<HH>:<MM>
 //   MOCHI:PRESENCE:<ACTIVE|IDLE>:<idle_seconds>
 //   MOCHI:AI:<THINK|TOOL|DONE|ASK|IDLE>[:optional_quip]
-//   MOCHI:POMO:<minutes>  |  MOCHI:POMO:STOP
+//   MOCHI:POMO:<minutes>  |  MOCHI:POMO:DEMO  |  MOCHI:POMO:STOP
 //   MOCHI:SYS:<CPU_HIGH|SITTING|GIT_COMMIT>[:optional_quip]
 //   MOCHI:BLE:<LEARN|RESET>
 
@@ -21,9 +25,9 @@ extern Adafruit_ST7789 tft;
 extern uint16_t animBgColor;
 extern uint16_t C_GREEN;
 extern uint16_t C_DARKBG;
-extern uint16_t C_WHITE_BAR;
+extern bool     quipActive;
+extern char     currentQuip[48];
 
-// Wall-clock synced from Mac (drifts gracefully via millis() between syncs)
 bool     wallClockValid  = false;
 uint8_t  wallBaseHour    = 0;
 uint8_t  wallBaseMin     = 0;
@@ -36,12 +40,10 @@ uint32_t pomoStartMs     = 0;
 uint32_t pomoDurationMs  = 0;
 int16_t  lastPomoFillW   = -1;
 
-// AI state auto-timeout (prevents getting stuck if host script exits)
 const uint32_t AI_THINK_TIMEOUT_MS = 120000UL;
 
-// Serial line buffer
-char     serialBuf[128];
-uint8_t  serialPos = 0;
+char    serialBuf[160];
+uint8_t serialPos = 0;
 
 bool hasWallClock() { return wallClockValid; }
 
@@ -71,14 +73,18 @@ void clearPomodoroBar() {
   lastPomoFillW = -1;
 }
 
-void startPomodoro(uint16_t minutes) {
-  if (minutes == 0) minutes = 25;
-  if (minutes > 180) minutes = 180;
-  pomoDurationMs = (uint32_t)minutes * 60000UL;
+void startPomodoroMs(uint32_t durationMs) {
+  pomoDurationMs = durationMs;
   pomoStartMs    = millis();
   pomoActive     = true;
   lastPomoFillW  = -1;
   pendingEvent   = EVT_POMO_START;
+}
+
+void startPomodoro(uint16_t minutes) {
+  if (minutes == 0) minutes = 25;
+  if (minutes > 180) minutes = 180;
+  startPomodoroMs((uint32_t)minutes * 60000UL);
 }
 
 void stopPomodoro() {
@@ -109,7 +115,6 @@ void redrawPomodoroBar(bool force = false) {
 
 // ── Serial Command Handler ───────────────────────────────────
 static void handleMochiCommand(char* line) {
-  // Trim trailing CR/LF/spaces
   int len = strlen(line);
   while (len > 0 && (line[len - 1] == '\r' || line[len - 1] == '\n' || line[len - 1] == ' ')) {
     line[--len] = '\0';
@@ -119,9 +124,18 @@ static void handleMochiCommand(char* line) {
 
   if (strcmp(cmd, "STATUS") == 0) {
     const char* moodNames[] = {"HYPER", "HAPPY", "CALM", "SLEEPY"};
+    int pomoRemSec = 0;
+    int pomoTotalSec = 0;
+    if (pomoActive) {
+      uint32_t el = millis() - pomoStartMs;
+      pomoRemSec   = (el < pomoDurationMs) ? (int)((pomoDurationMs - el) / 1000UL) : 0;
+      pomoTotalSec = (int)(pomoDurationMs / 1000UL);
+    }
     Serial.printf(
-      "OK:STATUS:mood=%s,boots=%lu,mins=%lu,love=%lu,lv=%u,temp=%.1f,rssi=%d,present=%d,pomo=%d,ai=%d,clock=%02u:%02u\n",
+      "OK:STATUS:mood=%s,expr=%u,bright=%u,boots=%lu,mins=%lu,love=%lu,lv=%u,temp=%.1f,rssi=%d,present=%d,pomo=%d,pomototal=%d,ai=%d,clock=%02u:%02u|quip=%s\n",
       moodNames[(uint8_t)currentMood],
+      (unsigned)currentExprId,
+      (unsigned)currentBrightness,
       (unsigned long)getBootCount(),
       (unsigned long)getTotalMinutes(),
       (unsigned long)getAffectionPoints(),
@@ -129,10 +143,12 @@ static void handleMochiCommand(char* line) {
       getChipTempC(),
       getLastBleRssi(),
       isOwnerPresent() ? 1 : 0,
-      pomoActive ? (int)((pomoDurationMs - (millis() - pomoStartMs)) / 1000UL) : 0,
+      pomoRemSec,
+      pomoTotalSec,
       (int)aiActiveMode,
       getWallHour(),
-      getWallMinute()
+      getWallMinute(),
+      (quipActive && currentQuip[0] != '\0') ? currentQuip : ""
     );
     return;
   }
@@ -150,7 +166,7 @@ static void handleMochiCommand(char* line) {
   }
 
   if (strncmp(cmd, "SAY:", 4) == 0) {
-    showQuip(cmd + 4, 3800);
+    showQuip(cmd + 4, 4000);
     Serial.println("OK:SAY");
     return;
   }
@@ -171,6 +187,55 @@ static void handleMochiCommand(char* line) {
     return;
   }
 
+  if (strncmp(cmd, "EGG:", 4) == 0) {
+    int eg = atoi(cmd + 4);
+    if (eg >= 0 && eg <= 3) {
+      pendingSubId = (uint8_t)eg;
+      pendingEvent = EVT_CUSTOM_EGG;
+      Serial.printf("OK:EGG:%d\n", eg);
+    }
+    return;
+  }
+
+  if (strncmp(cmd, "IDLE:", 5) == 0) {
+    int id = atoi(cmd + 5);
+    if (id >= 0 && id <= 5) {
+      pendingSubId = (uint8_t)id;
+      pendingEvent = EVT_CUSTOM_IDLE;
+      Serial.printf("OK:IDLE:%d\n", id);
+    }
+    return;
+  }
+
+  if (strncmp(cmd, "SCENE:", 6) == 0) {
+    char* sc = cmd + 6;
+    if (strcmp(sc, "AWAY") == 0) {
+      notifyMacPresence(false, 600);
+      showQuip("主人走啦..省电打个盹~", 3200);
+      pendingCustomExpr = DEMO_SLEEPY;
+      pendingEvent      = EVT_CUSTOM_EXPR;
+    } else if (strcmp(sc, "WELCOME") == 0) {
+      notifyMacPresence(true, 0);
+      pendingEvent = EVT_WELCOME_BACK;
+    } else if (strcmp(sc, "LONG_AWAY") == 0) {
+      notifyMacPresence(true, 0);
+      pendingEvent = EVT_LONG_AWAY;
+    } else if (strcmp(sc, "NAP_WAKE") == 0) {
+      pendingEvent = EVT_NAP_DEMO;
+    } else if (strcmp(sc, "NIGHT") == 0) {
+      setTargetBrightness(95);
+      showQuip("夜深啦早点睡~ 陪你收尾", 3800);
+      pendingCustomExpr = DEMO_NORMAL;
+      pendingEvent      = EVT_CUSTOM_EXPR;
+    } else if (strcmp(sc, "COLD") == 0) {
+      showQuip("刚开机有点凉飕飕~", 3400);
+      pendingSubId = 5;  // shiver
+      pendingEvent = EVT_CUSTOM_IDLE;
+    }
+    Serial.printf("OK:SCENE:%s\n", sc);
+    return;
+  }
+
   if (strncmp(cmd, "TIME:", 5) == 0) {
     int hh = 0, mm = 0;
     if (sscanf(cmd + 5, "%d:%d", &hh, &mm) == 2 && hh >= 0 && hh < 24 && mm >= 0 && mm < 60) {
@@ -179,7 +244,6 @@ static void handleMochiCommand(char* line) {
       wallBaseMin    = (uint8_t)mm;
       wallSyncMs     = millis();
       wallClockValid = true;
-      // Gentle meal/night reminders on exact transition
       if (wasValid && mm == 0 && lastGreetedHour != hh) {
         lastGreetedHour = hh;
         if (hh == 9)       showQuip("早安! 今天冲鸭~", 3500);
@@ -241,6 +305,10 @@ static void handleMochiCommand(char* line) {
       stopPomodoro();
       showQuip("番茄钟已结束~", 2600);
       Serial.println("OK:POMO:STOP");
+    } else if (strcmp(arg, "DEMO") == 0) {
+      startPomodoroMs(10000UL);
+      showQuip("专注开始! 看底端绿条~", 3200);
+      Serial.println("OK:POMO:DEMO");
     } else {
       int mins = atoi(arg);
       if (mins > 0) {
@@ -306,12 +374,10 @@ void pollSerialLink() {
     }
   }
 
-  // Auto-expire AI thinking mode if host stopped updating
   if (aiActiveMode == AI_MODE_THINKING && (millis() - aiModeSinceMs > AI_THINK_TIMEOUT_MS)) {
     aiActiveMode = AI_MODE_NONE;
   }
 
-  // Keep Pomodoro bar updated
   redrawPomodoroBar(false);
 }
 
