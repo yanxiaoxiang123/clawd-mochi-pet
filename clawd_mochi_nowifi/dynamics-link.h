@@ -26,7 +26,7 @@ extern uint16_t animBgColor;
 extern uint16_t C_GREEN;
 extern uint16_t C_DARKBG;
 extern bool     quipActive;
-extern char     currentQuip[48];
+extern char     currentQuip[96];
 
 bool     wallClockValid  = false;
 uint8_t  wallBaseHour    = 0;
