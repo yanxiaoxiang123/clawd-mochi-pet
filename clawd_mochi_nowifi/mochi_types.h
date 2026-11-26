@@ -50,7 +50,31 @@ enum MochiEvent : uint8_t {
   EVT_CUSTOM_IDLE  = 14,  // Explicit idle micro-animation trigger (0..5)
   EVT_NAP_DEMO     = 15,  // Demo nap -> stretch wake sequence
   EVT_BOND_SUCCESS = 16,  // iPhone BLE IRK bonding succeeded!
-  EVT_STRANGER     = 17   // Unbonded phone touched shell while bonded to owner!
+  EVT_STRANGER     = 17,  // Unbonded phone touched shell while bonded to owner!
+  EVT_FEED_FISH    = 18,  // Fed dried fish snack (+2 love, happy squish)
+  EVT_FEED_COFFEE  = 19,  // Fed iced americano (+2 love, instant HYPER wake-up)
+  EVT_FEED_MOCHI   = 20,  // Fed strawberry mochi (+4 love, flash + hearts)
+  EVT_FEED_TEA     = 21   // Fed warm herbal tea (+2 love, cozy CALM mode)
+};
+
+enum ThemeId : uint8_t {
+  THEME_AUTO   = 0,
+  THEME_CORAL  = 1,
+  THEME_CYBER  = 2,
+  THEME_SAKURA = 3,
+  THEME_AMBER  = 4,
+  THEME_MINT   = 5,
+  THEME_COUNT  = 6
+};
+
+enum HatId : uint8_t {
+  HAT_AUTO       = 0,
+  HAT_NONE       = 1,
+  HAT_CROWN      = 2,
+  HAT_HEADPHONES = 3,
+  HAT_SLEEP_CAP  = 4,
+  HAT_HEADBAND   = 5,
+  HAT_COUNT      = 6
 };
 
 enum AiMode : uint8_t {
@@ -62,6 +86,8 @@ enum AiMode : uint8_t {
 extern Mood       currentMood;
 extern uint8_t    currentExprId;
 extern uint8_t    currentBrightness;
+extern uint8_t    themeSetting;
+extern uint8_t    hatSetting;
 extern MochiEvent pendingEvent;
 extern uint8_t    pendingCustomExpr;
 extern uint8_t    pendingSubId;
@@ -72,5 +98,10 @@ extern uint32_t   aiModeSinceMs;
 bool frameDelay(int ms);
 bool holdDelay(uint32_t ms);
 void setTargetBrightness(uint8_t level);
+uint8_t getEffectiveTheme();
+uint8_t getEffectiveHat();
+void applyThemeAndRedraw(bool forceRedraw = false);
+void setThemeSetting(uint8_t t);
+void setHatSetting(uint8_t h);
 
 #endif // MOCHI_TYPES_H

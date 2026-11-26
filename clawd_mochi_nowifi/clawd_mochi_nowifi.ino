@@ -48,6 +48,7 @@ U8G2_FOR_ADAFRUIT_GFX u8g2;
 
 // ── Colours ───────────────────────────────────────────────────
 uint16_t C_ORANGE, C_DARKBG, C_MUTED, C_GREEN, C_TEAR, C_BUBBLE_BORDER;
+uint16_t C_CYBER, C_SAKURA, C_AMBER, C_MINT, C_GOLD, C_CAP_BLUE, C_RED_BAND;
 #define C_WHITE ST77XX_WHITE
 #define C_BLACK ST77XX_BLACK
 
@@ -57,6 +58,10 @@ uint8_t    currentExprId     = DEMO_HAPPY_ARC;
 uint8_t    currentBrightness = 255;
 uint8_t    targetBrightness  = 255;
 uint32_t   lastBrightTickMs  = 0;
+uint8_t    themeSetting      = THEME_AUTO;
+uint8_t    hatSetting        = HAT_AUTO;
+uint8_t    lastAppliedTheme  = 255;
+uint8_t    lastAppliedHat    = 255;
 
 MochiEvent pendingEvent      = EVT_NONE;
 uint8_t    pendingCustomExpr = 0;
@@ -113,6 +118,7 @@ static void serviceBackgroundTasks() {
   pollSensors();
   tickSpeech();
   tickBacklight();
+  applyThemeAndRedraw(false);
 }
 
 // Short animation-step wait; aborts early if an interactive event arrives
@@ -147,8 +153,130 @@ void initColours() {
   C_MUTED         = tft.color565( 90,  88,  86);
   C_GREEN         = tft.color565( 95, 235, 140);
   C_TEAR          = tft.color565( 95, 205, 255);
-  C_BUBBLE_BORDER = tft.color565(255, 210, 175);
+  C_BUBBLE_BORDER = tft.color565(255, 224, 195);
+  C_CYBER         = tft.color565(  0, 184, 212);
+  C_SAKURA        = tft.color565(245, 108, 158);
+  C_AMBER         = tft.color565(184, 112,  16);
+  C_MINT          = tft.color565( 36, 196, 126);
+  C_GOLD          = tft.color565(255, 214,  40);
+  C_CAP_BLUE      = tft.color565( 58, 130, 246);
+  C_RED_BAND      = tft.color565(225,  32,  42);
   animBgColor     = C_ORANGE;
+}
+
+uint8_t getEffectiveTheme() {
+  if (themeSetting != THEME_AUTO && themeSetting < THEME_COUNT) return themeSetting;
+  if (aiActiveMode == AI_MODE_THINKING) return THEME_CYBER;
+  if (isLateNightHours() || currentMood == MOOD_SLEEPY) return THEME_AMBER;
+  if (pomoActive) return THEME_MINT;
+  return THEME_CORAL;
+}
+
+uint8_t getEffectiveHat() {
+  if (hatSetting != HAT_AUTO && hatSetting < HAT_COUNT) return hatSetting;
+  if (aiActiveMode == AI_MODE_THINKING) return HAT_HEADPHONES;
+  if (pomoActive) return HAT_HEADBAND;
+  if (currentMood == MOOD_SLEEPY || isLateNightHours()) return HAT_SLEEP_CAP;
+  if (getAffectionLevel() >= 5) return HAT_CROWN;
+  return HAT_NONE;
+}
+
+uint16_t colorForTheme(uint8_t t) {
+  switch (t) {
+    case THEME_CYBER:  return C_CYBER;
+    case THEME_SAKURA: return C_SAKURA;
+    case THEME_AMBER:  return C_AMBER;
+    case THEME_MINT:   return C_MINT;
+    case THEME_CORAL:
+    default:           return C_ORANGE;
+  }
+}
+
+void drawActiveAccessory() {
+  uint8_t h = getEffectiveHat();
+  if (h == HAT_NONE) return;
+
+  if (h == HAT_CROWN) {
+    // Minimalist golden pixel crown centered above eyes (y=10..31)
+    if (currentExprId == DEMO_THINKING) return;
+    int16_t cx = 120, by = 31;
+    // Black outline
+    tft.fillRect(cx - 22, by - 12, 44, 14, C_BLACK);
+    tft.fillTriangle(cx - 22, by - 12, cx - 22, by - 22, cx - 10, by - 12, C_BLACK);
+    tft.fillTriangle(cx - 8,  by - 12, cx,      by - 25, cx + 8,  by - 12, C_BLACK);
+    tft.fillTriangle(cx + 10, by - 12, cx + 22, by - 22, cx + 22, by - 12, C_BLACK);
+    // Gold fill
+    tft.fillRect(cx - 19, by - 10, 38, 10, C_GOLD);
+    tft.fillTriangle(cx - 19, by - 10, cx - 19, by - 18, cx - 10, by - 10, C_GOLD);
+    tft.fillTriangle(cx - 6,  by - 10, cx,      by - 21, cx + 6,  by - 10, C_GOLD);
+    tft.fillTriangle(cx + 10, by - 10, cx + 19, by - 18, cx + 19, by - 10, C_GOLD);
+    // Tiny gem highlights
+    tft.fillRect(cx - 2, by - 7, 4, 4, C_RED_BAND);
+    tft.fillRect(cx - 13, by - 6, 3, 3, C_WHITE);
+    tft.fillRect(cx + 10, by - 6, 3, 3, C_WHITE);
+  } else if (h == HAT_HEADPHONES) {
+    // Sleek cyber pixel headphones framing the top & sides (never overlaps eyes or thinking dots!)
+    tft.fillRect(14, 7, 212, 6, C_BLACK);
+    tft.fillRect(20, 9, 200, 2, C_WHITE);
+    tft.fillRect(10, 12, 6, 48, C_BLACK);
+    tft.fillRect(224, 12, 6, 48, C_BLACK);
+    // Left & right earcups
+    tft.fillRoundRect(4,   56, 16, 44, 5, C_BLACK);
+    tft.fillRoundRect(220, 56, 16, 44, 5, C_BLACK);
+    tft.fillRect(8,   64, 5, 28, C_WHITE);
+    tft.fillRect(227, 64, 5, 28, C_WHITE);
+  } else if (h == HAT_SLEEP_CAP) {
+    if (currentExprId == DEMO_THINKING) return;
+    // Cozy tilted pixel sleep cap with white brim & pom-pom
+    tft.fillTriangle(88, 28, 152, 28, 134, 7, C_CAP_BLUE);
+    tft.drawTriangle(88, 28, 152, 28, 134, 7, C_BLACK);
+    tft.fillRoundRect(84, 24, 72, 9, 4, C_WHITE);
+    tft.drawRoundRect(84, 24, 72, 9, 4, C_BLACK);
+    tft.fillCircle(138, 10, 6, C_WHITE);
+    tft.drawCircle(138, 10, 6, C_BLACK);
+  } else if (h == HAT_HEADBAND) {
+    if (currentExprId == DEMO_THINKING) return;
+    // Focus headband across forehead with red knot & fluttering tail
+    tft.fillRect(16, 23, 208, 9, C_WHITE);
+    tft.drawRect(16, 23, 208, 9, C_BLACK);
+    tft.fillRect(106, 24, 28, 7, C_RED_BAND);
+    // Fluttering ribbon tails on right edge
+    tft.fillTriangle(222, 26, 236, 20, 234, 27, C_WHITE);
+    tft.fillTriangle(222, 29, 238, 34, 232, 38, C_WHITE);
+  }
+}
+
+void applyThemeAndRedraw(bool forceRedraw) {
+  uint8_t et = getEffectiveTheme();
+  uint8_t eh = getEffectiveHat();
+  if (!forceRedraw && et == lastAppliedTheme && eh == lastAppliedHat) return;
+  bool bgChanged = (et != lastAppliedTheme) || forceRedraw;
+  lastAppliedTheme = et;
+  lastAppliedHat   = eh;
+  animBgColor      = colorForTheme(et);
+  if (bgChanged) {
+    tft.fillScreen(animBgColor);
+    redrawQuipIfActive();
+    redrawPomodoroBar(true);
+  }
+}
+
+void setThemeSetting(uint8_t t) {
+  if (t >= THEME_COUNT) return;
+  themeSetting = t;
+  mochiPrefs.putUChar("theme", themeSetting);
+  applyThemeAndRedraw(true);
+  pendingCustomExpr = currentExprId;
+  pendingEvent      = EVT_CUSTOM_EXPR;
+}
+
+void setHatSetting(uint8_t h) {
+  if (h >= HAT_COUNT) return;
+  hatSetting = h;
+  mochiPrefs.putUChar("hat", hatSetting);
+  applyThemeAndRedraw(true);
+  pendingCustomExpr = currentExprId;
+  pendingEvent      = EVT_CUSTOM_EXPR;
 }
 
 inline int16_t eyeLX(int16_t ox) {
@@ -157,7 +285,10 @@ inline int16_t eyeLX(int16_t ox) {
 inline int16_t eyeRX(int16_t ox) { return eyeLX(ox) + EYE_W + EYE_GAP; }
 inline int16_t eyeY()            { return (DISP_H - EYE_H) / 2 - EYE_OY; }
 inline int16_t eyeCY()           { return eyeY() + EYE_H / 2; }
-inline void    clearEyeCanvas()  { tft.fillRect(0, 0, DISP_W, 195, animBgColor); }
+inline void    clearEyeCanvas()  {
+  tft.fillRect(0, 0, DISP_W, 195, animBgColor);
+  drawActiveAccessory();
+}
 
 // ═════════════════════════════════════════════════════════════
 //  15 PURE-GEOMETRIC EXPRESSIONS
@@ -759,6 +890,39 @@ void handlePendingEvent() {
       break;
     }
 
+    case EVT_FEED_FISH: {
+      addAffection(2);
+      if (currentMood == MOOD_SLEEPY) energizeCycle(false);
+      animSquishEyes();
+      animHappyArcEyes();
+      break;
+    }
+
+    case EVT_FEED_COFFEE: {
+      bool wokeUp = (currentMood == MOOD_SLEEPY);
+      addAffection(2);
+      energizeCycle(true);
+      if (wokeUp) animYawnStretch();
+      animSparkleEyes();
+      animHappyArcEyes();
+      break;
+    }
+
+    case EVT_FEED_MOCHI: {
+      addAffection(4);
+      energizeCycle(true);
+      eggFlash();
+      animHeartEyes();
+      break;
+    }
+
+    case EVT_FEED_TEA: {
+      addAffection(2);
+      setCalmMood();
+      animHappyArcEyes();
+      break;
+    }
+
     default:
       break;
   }
@@ -786,6 +950,7 @@ void setup() {
   setupSensorsAndMemory();
   setupDynamics();
   setupSpeech();
+  applyThemeAndRedraw(true);
 
   // Clean boot splash + personalized NVS greeting
   tft.fillScreen(animBgColor);

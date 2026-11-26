@@ -25,3 +25,7 @@ __pycache__/
 *.log
 *.tmp
 *.bak
+
+# Compiled local macOS Menu Bar binary
+tools/ClawdMochiBar
+tools/ClawdMochiBar.app/

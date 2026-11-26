@@ -86,8 +86,8 @@ def send_mochi_fast(cmd: str, kind: str) -> None:
         except Exception:
             pass
 
-    # If daemon isn't running yet, only auto-spawn in background if USB hardware is present
-    if glob.glob("/dev/cu.usbmodem*") or glob.glob("/dev/cu.usbserial*"):
+    # If daemon isn't running yet, only auto-spawn in background if USB hardware is present and not flashing
+    if not os.path.exists("/tmp/clawd-mochi-flashing.lock") and (glob.glob("/dev/cu.usbmodem*") or glob.glob("/dev/cu.usbserial*")):
         try:
             with open("/tmp/clawd-mochi.log", "ab") as logf:
                 subprocess.Popen(
@@ -111,11 +111,19 @@ def read_stdin_json() -> dict:
         return {}
 
 
+def _detect_cwd(payload: dict) -> str:
+    c = payload.get("cwd") or payload.get("workspace") or os.getcwd() or ""
+    return str(c).replace("\n", " ").replace("\r", " ").strip()
+
+
 def handle_antigravity() -> None:
     payload = read_stdin_json()
     ev = payload.get("hookEventName", "")
+    cwd = _detect_cwd(payload)
 
     if ev == "PreInvocation":
+        if cwd:
+            send_mochi_fast(f"__CTX__:AGY:{cwd}", "CTX")
         send_mochi_fast("MOCHI:AI:THINK:Antigravity 思考中...", "THINK")
         sys.stdout.write("{}\n")
     elif ev == "PreToolUse":
@@ -130,7 +138,7 @@ def handle_antigravity() -> None:
         if reason == "ERROR":
             send_mochi_fast("MOCHI:SYS:SITTING:AGY 执行出错啦!", "ASK")
         elif fully_idle and reason != "USER_CANCELED":
-            send_mochi_fast("MOCHI:AI:DONE:AGY 搞定啦! 快验收~", "DONE")
+            send_mochi_fast(f"__AI_DONE__:AGY:{cwd}", "DONE")
         sys.stdout.write('{"decision":"stop"}\n')
     else:
         sys.stdout.write("{}\n")
@@ -140,8 +148,11 @@ def handle_antigravity() -> None:
 def handle_claude_or_codex(agent_label: str) -> None:
     payload = read_stdin_json()
     ev = payload.get("hook_event_name") or payload.get("hookEventName") or ""
+    cwd = _detect_cwd(payload)
 
     if ev == "UserPromptSubmit":
+        if cwd:
+            send_mochi_fast(f"__CTX__:{agent_label}:{cwd}", "CTX")
         send_mochi_fast(f"MOCHI:AI:THINK:{agent_label} 思考中...", "THINK")
     elif ev == "PreToolUse":
         tname = payload.get("tool_name") or (payload.get("toolCall") or {}).get("name", "")
@@ -152,7 +163,7 @@ def handle_claude_or_codex(agent_label: str) -> None:
         if ev == "PermissionRequest" or any(k in ntype for k in ("permission", "elicitation", "idle", "input")):
             send_mochi_fast(f"MOCHI:AI:ASK:{agent_label} 等你拍板!", "ASK")
     elif ev in ("Stop", "TaskCompleted"):
-        send_mochi_fast(f"MOCHI:AI:DONE:{agent_label} 搞定啦!", "DONE")
+        send_mochi_fast(f"__AI_DONE__:{agent_label}:{cwd}", "DONE")
 
 
 def handle_codex_notify(extra_args: list[str]) -> None:
@@ -171,10 +182,11 @@ def handle_codex_notify(extra_args: list[str]) -> None:
 
     # 2. Parse Codex notify JSON payload if present
     raw_joined = " ".join(extra_args).lower()
+    cwd = os.getcwd()
     if "approval" in raw_joined or "permission" in raw_joined:
         send_mochi_fast("MOCHI:AI:ASK:Codex 等你确认!", "ASK")
     else:
-        send_mochi_fast("MOCHI:AI:DONE:Codex 搞定啦!", "DONE")
+        send_mochi_fast(f"__AI_DONE__:Codex:{cwd}", "DONE")
 
 
 def main() -> int:

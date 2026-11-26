@@ -538,6 +538,10 @@ void setupSensorsAndMemory() {
   statBootCount     = mochiPrefs.getUInt("boots", 0) + 1;
   statTotalMinutes  = mochiPrefs.getUInt("mins", 0);
   statAffection     = mochiPrefs.getUInt("love", 0);
+  themeSetting      = mochiPrefs.getUChar("theme", THEME_AUTO);
+  hatSetting        = mochiPrefs.getUChar("hat", HAT_AUTO);
+  if (themeSetting >= THEME_COUNT) themeSetting = THEME_AUTO;
+  if (hatSetting >= HAT_COUNT)     hatSetting   = HAT_AUTO;
   boundSubType      = mochiPrefs.getUChar("blesub", 0);
   petTouchThreshold = mochiPrefs.getChar("blepet", -32);
   ownerBonded       = mochiPrefs.getBool("bonded", false);

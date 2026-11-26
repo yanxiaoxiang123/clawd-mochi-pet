@@ -66,6 +66,7 @@
     .badge-sec { padding: 3px 9px; border-radius: 8px; font-size: 12px; background: var(--sec); color: var(--sec-fg); font-family: ui-monospace, SFMono-Regular, monospace; }
     .muted { color: var(--muted); font-size: 12px; }
     .kpi-row { display: grid; grid-template-columns: repeat(4, minmax(84px, 1fr)); gap: 8px; text-align: center; }
+    @media (max-width: 560px) { .kpi-row { grid-template-columns: repeat(2, 1fr); width: 100%; } }
     .kpi { background: var(--sec); padding: 8px 12px; border-radius: 12px; }
     .kpi b { font-size: 15px; display: block; font-variant-numeric: tabular-nums; }
     .top-grid { display: grid; grid-template-columns: 390px 1fr; gap: 20px; }
@@ -219,60 +220,82 @@
         </div>
 
         <div class="sec-block">
-          <div class="muted"><b>1. 亲密互动 & 在岗状态联动</b></div>
+          <div class="muted"><b>1. 花式投喂（触发吃东西动画 + 大模型吃货感言 + 改变状态）</b></div>
           <div class="btn-group">
-            <button class="primary" onclick="triggerScenario('pet')">⌚ 摸摸头 / 贴贴真机 (亲密度 +1)</button>
-            <button onclick="triggerScenario('away')">🚶 让它进入离座省电打盹</button>
-            <button onclick="triggerScenario('welcome')">👋 触发“欢迎回座”问候</button>
-            <button onclick="triggerScenario('long_away')">💧 触发“久别委屈掉泪 → 开心”</button>
+            <button class="primary" onclick="feedMochi('FISH', '小鱼干')">🐟 喂小鱼干 (+2)</button>
+            <button class="primary" onclick="feedMochi('COFFEE', '冰美式')">☕ 喂冰美式 (秒醒)</button>
+            <button class="primary" onclick="feedMochi('MOCHI', '草莓麻薯')">🍓 草莓麻薯 (+4)</button>
+            <button onclick="feedMochi('TEA', '养生热茶')">🍵 养生热茶 (平静)</button>
+            <button onclick="triggerScenario('pet')">❤️ 摸摸头 (+1)</button>
           </div>
         </div>
 
         <div class="sec-block">
-          <div class="muted"><b>2. AI 编程状态 & 电脑健康提醒</b></div>
+          <div class="muted"><b>2. 眼睛主题配色 & 头顶像素小配饰（默认随场景自动换装）</b></div>
           <div class="btn-group">
-            <button onclick="triggerScenario('ai_think')">🤖 AI 思考/跑工具中</button>
-            <button onclick="triggerScenario('ai_ask')">❓ AI 等你拍板</button>
-            <button onclick="triggerScenario('ai_done')">✨ AI 搞定任务 (真机闪屏欢呼)</button>
-            <button onclick="triggerScenario('sitting')">💢 久坐傲娇催喝水</button>
-            <button onclick="triggerScenario('cpu_high')">🔥 电脑高负载眩晕流汗</button>
-            <button onclick="triggerScenario('git_commit')">🎉 Git 提交成功庆祝</button>
+            <button class="ghost" onclick="setTheme(0)">🎨 自动换色</button>
+            <button class="ghost" onclick="setTheme(1)">🟠 珊瑚橙</button>
+            <button class="ghost" onclick="setTheme(2)">🔵 赛博青</button>
+            <button class="ghost" onclick="setTheme(3)">🌸 樱花粉</button>
+            <button class="ghost" onclick="setTheme(4)">🌙 暖金护眼</button>
+            <button class="ghost" onclick="setTheme(5)">🌿 薄荷绿</button>
+          </div>
+          <div class="btn-group">
+            <button class="ghost" onclick="setHat(0)">🎩 自动配饰</button>
+            <button class="ghost" onclick="setHat(1)">👀 纯净大眼</button>
+            <button class="ghost" onclick="setHat(2)">👑 金色皇冠</button>
+            <button class="ghost" onclick="setHat(3)">🎧 赛博耳机</button>
+            <button class="ghost" onclick="setHat(4)">🧢 像素睡帽</button>
+            <button class="ghost" onclick="setHat(5)">🎀 必胜头带</button>
+          </div>
+        </div>
+
+        <div class="sec-block" style="padding:10px 12px;border-radius:12px;background:var(--bg);border:1px solid var(--border);display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;">
+          <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;font-size:12px;">
+            <label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" id="chkSound" checked onchange="saveAudioPrefs()" /> 🔊 8-bit 音效</label>
+            <label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" id="chkTts" onchange="saveAudioPrefs()" /> 🗣 语音朗读</label>
+            <label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" id="chkLlm" checked onchange="saveAudioPrefs()" /> 🧠 大模型台词</label>
+            <button class="ghost" onclick="previewSfx()">🎵 试听音效</button>
+          </div>
+          <div class="muted" id="lanUrlHint" style="font-family:ui-monospace,monospace;">手机局域网: 读取中...</div>
+        </div>
+
+        <div class="sec-block">
+          <div class="muted"><b>3. 在岗状态、AI 编程联动 & 底端 3px 番茄钟</b></div>
+          <div class="btn-group">
+            <button onclick="triggerScenario('welcome')">👋 欢迎回座</button>
+            <button onclick="triggerScenario('away')">🚶 离座打盹</button>
+            <button onclick="triggerScenario('long_away')">💧 久别重逢</button>
+            <button onclick="triggerScenario('ai_think')">🤖 AI 思考中</button>
+            <button onclick="triggerScenario('ai_ask')">❓ AI 等拍板</button>
+            <button onclick="triggerScenario('ai_done')">✨ AI 搞定庆祝</button>
+            <button class="primary" onclick="triggerScenario('pomo_25')">🍅 25m 专注</button>
+            <button onclick="triggerScenario('pomo_demo')">⚡ 10秒演示</button>
+            <button onclick="triggerScenario('pomo_stop')">⏹ 停番茄钟</button>
           </div>
         </div>
 
         <div class="sec-block">
-          <div class="muted"><b>3. 真机底端 3px 番茄钟 & 作息演示</b></div>
+          <div class="muted"><b>4. 三句小剧场 & 4 种彩蛋 & 6 种微动作</b></div>
           <div class="btn-group">
-            <button class="primary" onclick="triggerScenario('pomo_25')">🍅 开启真机 25 分钟番茄钟</button>
-            <button onclick="triggerScenario('pomo_demo')">⚡ 10 秒快进演示番茄钟达成</button>
-            <button onclick="triggerScenario('pomo_stop')">⏹ 停止番茄钟</button>
-            <button onclick="triggerScenario('nap_wake')">😴 演示“小憩呼吸灯 → 伸懒腰苏醒”</button>
-            <button onclick="triggerScenario('night_mode')">🌙 深夜护眼调暗模式</button>
-          </div>
-        </div>
-
-        <div class="sec-block">
-          <div class="muted"><b>4. 三句连贯小剧场 & 4 种隐藏彩蛋 & 6 种微动作</b></div>
-          <div class="btn-group">
-            <button onclick="playMiniTheater()">💬 真机播放三句小剧场</button>
-            <button onclick="playEgg('zoom', 0)">🥚 彩蛋: 巨化脉冲</button>
-            <button onclick="playEgg('dance', 1)">🥚 彩蛋: 串烧热舞</button>
-            <button onclick="playEgg('flash', 2)">🥚 彩蛋: 闪屏派对</button>
-            <button onclick="playEgg('secret', 3)">🥚 彩蛋: 隐藏震惊</button>
-          </div>
-          <div class="btn-group">
+            <button onclick="playMiniTheater()">💬 三句小剧场</button>
+            <button onclick="playEgg('zoom', 0)">🥚 巨化脉冲</button>
+            <button onclick="playEgg('dance', 1)">🥚 串烧热舞</button>
+            <button onclick="playEgg('flash', 2)">🥚 闪屏派对</button>
+            <button onclick="playEgg('secret', 3)">🥚 隐藏震惊</button>
             <button class="ghost" onclick="playIdle('blink', 0)">👀 眨眼</button>
-            <button class="ghost" onclick="playIdle('lookL', 1)">👀 向左偷瞄</button>
-            <button class="ghost" onclick="playIdle('lookR', 2)">👀 向右偷瞄</button>
-            <button class="ghost" onclick="playIdle('lookUp', 3)">👀 抬头看天</button>
-            <button class="ghost" onclick="playIdle('breathe', 4)">👀 轻柔呼吸</button>
-            <button class="ghost" onclick="playIdle('shiver', 5)">👀 怕冷发抖</button>
+            <button class="ghost" onclick="playIdle('lookL', 1)">👀 左瞄</button>
+            <button class="ghost" onclick="playIdle('lookR', 2)">👀 右瞄</button>
+            <button class="ghost" onclick="playIdle('lookUp', 3)">👀 抬头</button>
+            <button class="ghost" onclick="playIdle('breathe', 4)">👀 呼吸</button>
+            <button class="ghost" onclick="playIdle('shiver', 5)">👀 发抖</button>
           </div>
         </div>
 
         <div class="input-row">
-          <input id="customSayInput" type="text" maxlength="28" placeholder="输入想让桌上小螃蟹说的话 (支持全字库中文，超长自动换两行)，回车立刻显示..." />
-          <button class="primary" onclick="sendCustomQuip()">发到真机屏幕</button>
+          <input id="customSayInput" type="text" maxlength="40" placeholder="输入文字：点「发弹幕」直接上屏，或点「跟它聊一句」让大模型实时回复..." />
+          <button onclick="sendCustomQuip()">📢 发弹幕</button>
+          <button class="primary" onclick="sendAiChat()">✨ 跟它聊一句</button>
         </div>
       </div>
     </section>
@@ -327,7 +350,56 @@ python3 tools/mochi.py expr 0..14             # 指定切换任意一种表情</
   <script>
     const DISP_W = 240, DISP_H = 240;
     const EYE_W = 30, EYE_H = 60, EYE_GAP = 120, EYE_OY = 40;
-    const C_ORANGE = '#DA1100', C_DARKBG = '#230A08', C_BLACK = '#000000', C_WHITE = '#FFFFFF', C_GREEN = '#5FEB8C', C_TEAR = '#5FCDFF', C_BORDER = '#FFD2AF';
+    const C_ORANGE = '#DA1100', C_DARKBG = '#230A08', C_BLACK = '#000000', C_WHITE = '#FFFFFF', C_GREEN = '#5FEB8C', C_TEAR = '#5FCDFF', C_BORDER = '#FFE0C3';
+    const THEME_COLORS = {
+      1: '#DA1100', // Coral
+      2: '#00B8D4', // Cyber Cyan
+      3: '#F56C9E', // Sakura Pink
+      4: '#B87010', // Warm Gold
+      5: '#24C47E'  // Mint Green
+    };
+
+    function drawHatOnCanvas(ctx, hatId, exprId) {
+      if (!hatId || hatId === 1) return;
+      if (hatId === 2) { // Crown
+        if (exprId === 8) return;
+        const cx = 120, by = 31;
+        ctx.fillStyle = C_BLACK;
+        ctx.fillRect(cx - 22, by - 12, 44, 14);
+        fillTri(ctx, cx - 22, by - 12, cx - 22, by - 22, cx - 10, by - 12);
+        fillTri(ctx, cx - 8, by - 12, cx, by - 25, cx + 8, by - 12);
+        fillTri(ctx, cx + 10, by - 12, cx + 22, by - 22, cx + 22, by - 12);
+        ctx.fillStyle = '#FFD628';
+        ctx.fillRect(cx - 19, by - 10, 38, 10);
+        fillTri(ctx, cx - 19, by - 10, cx - 19, by - 18, cx - 10, by - 10);
+        fillTri(ctx, cx - 6, by - 10, cx, by - 21, cx + 6, by - 10);
+        fillTri(ctx, cx + 10, by - 10, cx + 19, by - 18, cx + 19, by - 10);
+        ctx.fillStyle = '#E1202A'; ctx.fillRect(cx - 2, by - 7, 4, 4);
+        ctx.fillStyle = C_WHITE; ctx.fillRect(cx - 13, by - 6, 3, 3); ctx.fillRect(cx + 10, by - 6, 3, 3);
+      } else if (hatId === 3) { // Headphones
+        ctx.fillStyle = C_BLACK;
+        ctx.fillRect(14, 7, 212, 6);
+        ctx.fillRect(10, 12, 6, 48); ctx.fillRect(224, 12, 6, 48);
+        ctx.beginPath(); ctx.roundRect(4, 56, 16, 44, 5); ctx.roundRect(220, 56, 16, 44, 5); ctx.fill();
+        ctx.fillStyle = C_WHITE;
+        ctx.fillRect(20, 9, 200, 2);
+        ctx.fillRect(8, 64, 5, 28); ctx.fillRect(227, 64, 5, 28);
+      } else if (hatId === 4) { // Sleep Cap
+        if (exprId === 8) return;
+        ctx.fillStyle = '#3A82F6'; fillTri(ctx, 88, 28, 152, 28, 134, 7);
+        ctx.fillStyle = C_WHITE; ctx.beginPath(); ctx.roundRect(84, 24, 72, 9, 4); ctx.fill();
+        ctx.strokeStyle = C_BLACK; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.beginPath(); ctx.arc(138, 10, 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      } else if (hatId === 5) { // Headband
+        if (exprId === 8) return;
+        ctx.fillStyle = C_WHITE; ctx.fillRect(16, 23, 208, 9);
+        ctx.strokeStyle = C_BLACK; ctx.lineWidth = 1.5; ctx.strokeRect(16, 23, 208, 9);
+        ctx.fillStyle = '#E1202A'; ctx.fillRect(106, 24, 28, 7);
+        ctx.fillStyle = C_WHITE;
+        fillTri(ctx, 222, 26, 236, 20, 234, 27);
+        fillTri(ctx, 222, 29, 238, 34, 232, 38);
+      }
+    }
 
     const eyeLX = (ox = 0) => (DISP_W - (EYE_W * 2 + EYE_GAP)) / 2 + ox;
     const eyeRX = (ox = 0) => eyeLX(ox) + EYE_W + EYE_GAP;
@@ -541,7 +613,7 @@ python3 tools/mochi.py expr 0..14             # 指定切换任意一种表情</
     const overlayEl = document.getElementById('backlightOverlay');
     let sim = {
       online: false,
-      exprId: 7, exprStartMs: performance.now(), exprDurationMs: 3200, bgCol: C_ORANGE,
+      exprId: 7, exprStartMs: performance.now(), exprDurationMs: 3200, bgCol: C_ORANGE, hatId: 1,
       quipText: '', quipUntilMs: 0, theaterQueue: [],
       pomoRemSec: 0, pomoTotalSec: 0,
       targetBrightness: 255, currentBrightness: 255, sleepBreathing: false,
@@ -559,7 +631,6 @@ python3 tools/mochi.py expr 0..14             # 指定切换任意一种表情</
 
     function setLocalExpr(id, dur = 3200) {
       sim.customAnim = null;
-      sim.bgCol = C_ORANGE;
       if (sim.exprId !== id) {
         sim.exprId = id;
         sim.exprStartMs = performance.now();
@@ -629,7 +700,25 @@ python3 tools/mochi.py expr 0..14             # 指定切换任意一种表情</
       document.getElementById('statTemp').textContent = `${st.temp.toFixed(1)}°C (体感~${estRoom}°C)`;
       document.getElementById('statQuip').textContent = st.quip ? `"${st.quip}"` : '(安静眨眼中)';
 
-      // 镜像真机的表情、气泡、PWM 背光与底端 3px 番茄钟
+      // 镜像真机的主题色、像素小帽子、表情、气泡、PWM 背光与底端 3px 番茄钟
+      if (typeof st.etheme === 'number' && THEME_COLORS[st.etheme]) {
+        sim.bgCol = THEME_COLORS[st.etheme];
+      }
+      if (typeof st.ehat === 'number') {
+        sim.hatId = st.ehat;
+      }
+      if (st.audio) {
+        const s1 = document.getElementById('chkSound');
+        const s2 = document.getElementById('chkTts');
+        const s3 = document.getElementById('chkLlm');
+        if (s1) s1.checked = !!st.audio.sound_enabled;
+        if (s2) s2.checked = !!st.audio.tts_enabled;
+        if (s3) s3.checked = !!st.audio.llm_enabled;
+      }
+      if (st.lan_url) {
+        const el = document.getElementById('lanUrlHint');
+        if (el) el.innerHTML = `📱 手机同 Wi-Fi 遥控: <a href="${st.lan_url}" target="_blank" style="color:var(--primary);">${st.lan_url}</a>`;
+      }
       if (!sim.customAnim && typeof st.expr === 'number' && st.expr >= 0 && st.expr < 15) {
         setLocalExpr(st.expr, 3200);
       }
@@ -808,6 +897,73 @@ python3 tools/mochi.py expr 0..14             # 指定切换任意一种表情</
       };
     };
 
+    window.feedMochi = async function(food, label) {
+      const fb = document.getElementById('cmdFeedback');
+      fb.textContent = `正在投喂${label}并生成吃货感言...`;
+      try {
+        const res = await fetch('/api/feed', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ food })
+        });
+        const data = await res.json();
+        if (data && data.status) applyHardwareStatus(data.status);
+        fb.textContent = data.reply ? `已投喂${label} · 小螃蟹说: "${data.reply}"` : `已投喂${label} ✓`;
+      } catch (_e) {
+        fb.textContent = `投喂失败，请确认守护进程在线`;
+      }
+    };
+
+    window.setTheme = function(idx) {
+      sendDeviceCmd(`MOCHI:THEME:${idx}`, `切换主题 #${idx}`);
+    };
+
+    window.setHat = function(idx) {
+      sendDeviceCmd(`MOCHI:HAT:${idx}`, `切换像素小配饰 #${idx}`);
+    };
+
+    window.saveAudioPrefs = async function() {
+      const sound_enabled = document.getElementById('chkSound').checked;
+      const tts_enabled = document.getElementById('chkTts').checked;
+      const llm_enabled = document.getElementById('chkLlm').checked;
+      await fetch('/api/audio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sound_enabled, tts_enabled, llm_enabled })
+      }).catch(() => {});
+      document.getElementById('cmdFeedback').textContent = '已保存声音与大模型设置 ✓';
+    };
+
+    window.previewSfx = async function() {
+      await fetch('/api/audio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ preview_sfx: 'pomo_done' })
+      }).catch(() => {});
+      document.getElementById('cmdFeedback').textContent = '正在播放 8-bit 电子宠物试听音 🎵';
+    };
+
+    window.sendAiChat = async function() {
+      const input = document.getElementById('customSayInput');
+      const val = (input.value || '').trim();
+      if (!val) return;
+      input.value = '';
+      const fb = document.getElementById('cmdFeedback');
+      fb.textContent = `小螃蟹正在用大模型思考怎么回你...`;
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: val })
+        });
+        const data = await res.json();
+        if (data && data.status) applyHardwareStatus(data.status);
+        fb.textContent = data.reply ? `小螃蟹回复: "${data.reply}" ✓` : '已回复';
+      } catch (_e) {
+        fb.textContent = '对话失败，请检查守护进程';
+      }
+    };
+
     window.sendCustomQuip = function() {
       const input = document.getElementById('customSayInput');
       const val = (input.value || '').trim();
@@ -816,7 +972,7 @@ python3 tools/mochi.py expr 0..14             # 指定切换任意一种表情</
       if (!sim.online) showOfflineQuip(val, 4000);
       input.value = '';
     };
-    document.getElementById('customSayInput').addEventListener('keydown', e => { if (e.key === 'Enter') window.sendCustomQuip(); });
+    document.getElementById('customSayInput').addEventListener('keydown', e => { if (e.key === 'Enter') window.sendAiChat(); });
 
     const gridEl = document.getElementById('exprGrid');
     const miniCanvases = [];
@@ -847,6 +1003,7 @@ python3 tools/mochi.py expr 0..14             # 指定切换任意一种表情</
           else sim.exprStartMs = now;
         }
         renderExpressionFrame(mainCtx, sim.exprId, Math.min(1, (now - sim.exprStartMs) / sim.exprDurationMs), sim.bgCol);
+        drawHatOnCanvas(mainCtx, sim.hatId, sim.exprId);
       }
 
       mainCtx.fillStyle = sim.bgCol; mainCtx.fillRect(0, 195, DISP_W, 45);

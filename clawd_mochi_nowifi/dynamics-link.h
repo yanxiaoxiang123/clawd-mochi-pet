@@ -132,7 +132,7 @@ static void handleMochiCommand(char* line) {
       pomoTotalSec = (int)(pomoDurationMs / 1000UL);
     }
     Serial.printf(
-      "OK:STATUS:mood=%s,expr=%u,bright=%u,boots=%lu,mins=%lu,love=%lu,lv=%u,temp=%.1f,rssi=%d,present=%d,pomo=%d,pomototal=%d,ai=%d,bonded=%d,pairing=%d,clock=%02u:%02u|quip=%s\n",
+      "OK:STATUS:mood=%s,expr=%u,bright=%u,boots=%lu,mins=%lu,love=%lu,lv=%u,temp=%.1f,rssi=%d,present=%d,pomo=%d,pomototal=%d,ai=%d,bonded=%d,pairing=%d,theme=%u,etheme=%u,hat=%u,ehat=%u,clock=%02u:%02u|quip=%s\n",
       moodNames[(uint8_t)currentMood],
       (unsigned)currentExprId,
       (unsigned)currentBrightness,
@@ -148,10 +148,75 @@ static void handleMochiCommand(char* line) {
       (int)aiActiveMode,
       isOwnerBonded() ? 1 : 0,
       getPairingRemainingSec(),
+      (unsigned)themeSetting,
+      (unsigned)getEffectiveTheme(),
+      (unsigned)hatSetting,
+      (unsigned)getEffectiveHat(),
       getWallHour(),
       getWallMinute(),
       (quipActive && currentQuip[0] != '\0') ? currentQuip : ""
     );
+    return;
+  }
+
+  if (strncmp(cmd, "THEME:", 6) == 0) {
+    int th = atoi(cmd + 6);
+    if (th >= 0 && th < THEME_COUNT) {
+      setThemeSetting((uint8_t)th);
+      Serial.printf("OK:THEME:%d\n", th);
+    }
+    return;
+  }
+
+  if (strncmp(cmd, "HAT:", 4) == 0) {
+    int ht = atoi(cmd + 4);
+    if (ht >= 0 && ht < HAT_COUNT) {
+      setHatSetting((uint8_t)ht);
+      Serial.printf("OK:HAT:%d\n", ht);
+    }
+    return;
+  }
+
+  if (strncmp(cmd, "FEED:", 5) == 0) {
+    char* sub = cmd + 5;
+    char* customText = strchr(sub, ':');
+    if (customText) {
+      *customText = '\0';
+      customText++;
+    }
+    if (strcmp(sub, "FISH") == 0) {
+      pendingEvent = EVT_FEED_FISH;
+      showQuip(customText && *customText ? customText : "咔嚓咔嚓! 小鱼干真香~", 4200);
+    } else if (strcmp(sub, "COFFEE") == 0) {
+      pendingEvent = EVT_FEED_COFFEE;
+      showQuip(customText && *customText ? customText : "冰美式到位! 瞬间满血~", 4200);
+    } else if (strcmp(sub, "MOCHI") == 0) {
+      pendingEvent = EVT_FEED_MOCHI;
+      showQuip(customText && *customText ? customText : "草莓麻薯太甜啦! 爱你~", 4200);
+    } else if (strcmp(sub, "TEA") == 0) {
+      pendingEvent = EVT_FEED_TEA;
+      showQuip(customText && *customText ? customText : "热茶暖暖的~ 歇会儿肩吧", 4200);
+    }
+    Serial.printf("OK:FEED:%s\n", sub);
+    return;
+  }
+
+  if (strncmp(cmd, "CHAT:", 5) == 0) {
+    char* p = cmd + 5;
+    char* msg = strchr(p, ':');
+    if (msg) {
+      *msg = '\0';
+      msg++;
+      int ex = atoi(p);
+      if (ex >= 0 && ex < DEMO_COUNT) {
+        pendingCustomExpr = (uint8_t)ex;
+        pendingEvent      = EVT_CUSTOM_EXPR;
+      }
+      if (*msg) {
+        showQuip(msg, 4800);
+      }
+      Serial.println("OK:CHAT");
+    }
     return;
   }
 

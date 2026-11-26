@@ -68,6 +68,13 @@ void energizeCycle(bool toHyper = true) {
   setTargetBrightness(desiredBrightnessForState());
 }
 
+void setCalmMood() {
+  cycleStartMs = millis() - CYCLE_HAPPY_END_MS;
+  currentMood  = MOOD_CALM;
+  animSpeed    = moodSpeed(currentMood);
+  setTargetBrightness(desiredBrightnessForState());
+}
+
 void setupDynamics() {
   bootMs           = millis();
   cycleStartMs     = bootMs;
