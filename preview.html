@@ -205,6 +205,19 @@
           <span id="cmdFeedback" class="muted">就绪</span>
         </div>
 
+        <div class="sec-block" style="padding:12px;border-radius:12px;background:var(--bg);border:1px solid var(--border);">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+            <div>
+              <b style="font-size:13px;">🔐 iPhone 蓝牙专属认主（一对一身份识别）</b>
+              <div id="bondStatusText" class="muted" style="margin-top:2px;">正在读取认主状态...</div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="primary" onclick="sendDeviceCmd('MOCHI:BLE:PAIR', '开启 iPhone 蓝牙配对广播')">📱 开启配对认主 (3分钟)</button>
+              <button class="ghost" onclick="sendDeviceCmd('MOCHI:BLE:UNPAIR', '解除 iPhone 绑定')">解除绑定</button>
+            </div>
+          </div>
+        </div>
+
         <div class="sec-block">
           <div class="muted"><b>1. 亲密互动 & 在岗状态联动</b></div>
           <div class="btn-group">
@@ -596,7 +609,22 @@ python3 tools/mochi.py expr 0..14             # 指定切换任意一种表情</
       const aiStr = st.ai === 1 ? ' · AI思考中' : '';
       document.getElementById('simStateBadge').textContent = `${st.mood} · ${presStr}${aiStr}`;
       document.getElementById('statLove').textContent = `Lv.${st.lv} (♥ ${st.love})`;
-      document.getElementById('statBle').textContent = `${st.rssi} dBm`;
+      document.getElementById('statBle').textContent = st.bonded
+        ? `主人 ${st.rssi} dBm ✓`
+        : `${st.rssi} dBm (未绑手机)`;
+      const bondEl = document.getElementById('bondStatusText');
+      if (bondEl) {
+        if (st.pairing > 0) {
+          bondEl.textContent = `🟡 正在广播 Clawd-Mochi (剩余 ${st.pairing} 秒) — 请打开 iPhone「设置 → 蓝牙 → 其他设备」点击配对`;
+          bondEl.style.color = '#d97706';
+        } else if (st.bonded) {
+          bondEl.textContent = `🟢 已绑定你的专属 iPhone（已自动断开省电连接，仅靠你的手机加密广播识别靠近/离开；陌生手机贴壳会傲娇拒绝）`;
+          bondEl.style.color = 'var(--ok-fg)';
+        } else {
+          bondEl.textContent = `⚪ 尚未绑定专属 iPhone（当前为通用距离模式，点右侧“开启配对认主”即可绑定）`;
+          bondEl.style.color = '';
+        }
+      }
       const estRoom = (st.temp - 24.5).toFixed(1);
       document.getElementById('statTemp').textContent = `${st.temp.toFixed(1)}°C (体感~${estRoom}°C)`;
       document.getElementById('statQuip').textContent = st.quip ? `"${st.quip}"` : '(安静眨眼中)';

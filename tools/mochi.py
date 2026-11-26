@@ -125,6 +125,8 @@ def parse_status_line(resp: str, port: Optional[str] = None) -> Dict[str, Any]:
         "pomo": int(kv.get("pomo", "0")),
         "pomototal": int(kv.get("pomototal", "0")),
         "ai": int(kv.get("ai", "0")),
+        "bonded": kv.get("bonded", "0") == "1",
+        "pairing": int(kv.get("pairing", "0")),
         "clock": kv.get("clock", "12:00"),
         "quip": quip,
         "ts": time.time(),
@@ -503,12 +505,17 @@ def format_status(resp: str) -> str:
     pomo_s = st["pomo"]
     pomo_str = f"{pomo_s // 60}分{pomo_s % 60:02d}秒" if pomo_s > 0 else "未开启"
     present_str = "在桌前" if st["present"] else "离开工位"
+    bond_str = (
+        f"等待配对中 ({st['pairing']}s)"
+        if st.get("pairing", 0) > 0
+        else ("已绑定专属 iPhone" if st.get("bonded") else "未绑定(通用模式)")
+    )
     quip_str = f' | 当前气泡: "{st["quip"]}"' if st.get("quip") else ""
     return (
         f"小螃蟹状态:\n"
         f"  当前心情: {st['mood']} (表情 #{st['expr']:02d}, 背光 {round(st['bright']*100/255)}%)  |  在岗状态: {present_str}\n"
         f"  见面次数: 第 {st['boots']} 次  |  累计陪伴: {st['mins']} 分钟\n"
-        f"  亲密度  : Lv.{st['lv']} (爱心值 {st['love']})\n"
+        f"  亲密度  : Lv.{st['lv']} (爱心值 {st['love']})  |  蓝牙认主: {bond_str}\n"
         f"  芯片温度: {st['temp']:.1f} °C  |  最近蓝牙信号: {st['rssi']} dBm\n"
         f"  专注番茄: {pomo_str}  |  同步时间: {st['clock']}{quip_str}"
     )
@@ -560,6 +567,11 @@ def main():
     elif action == "expr":
         idx = int(args[0]) if args else 0
         print(send_command(f"MOCHI:EXPR:{idx}"))
+    elif action == "pair-ble":
+        print("已开启 3 分钟蓝牙认主广播，请打开 iPhone「设置 → 蓝牙」点击 Clawd-Mochi 配对！")
+        print(send_command("MOCHI:BLE:PAIR"))
+    elif action == "unpair-ble":
+        print(send_command("MOCHI:BLE:UNPAIR"))
     elif action == "bind-ble":
         print("请现在把戴着 Apple Watch 的手腕或 iPhone 贴近小螃蟹外壳 (5~10cm 内)...")
         print(send_command("MOCHI:BLE:LEARN"))

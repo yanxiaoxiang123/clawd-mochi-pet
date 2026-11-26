@@ -742,6 +742,23 @@ void handlePendingEvent() {
       break;
     }
 
+    case EVT_BOND_SUCCESS: {
+      addAffection(5);
+      energizeCycle(true);
+      eggFlash();
+      showQuip("认主成功! 只认你啦 <3", 4500);
+      animHeartEyes();
+      animSparkleEyes();
+      break;
+    }
+
+    case EVT_STRANGER: {
+      if (currentMood == MOOD_SLEEPY) energizeCycle(false);
+      showQuip("哼! 你不是我主人!", 3500);
+      animAngryEyes();
+      break;
+    }
+
     default:
       break;
   }

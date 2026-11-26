@@ -132,7 +132,7 @@ static void handleMochiCommand(char* line) {
       pomoTotalSec = (int)(pomoDurationMs / 1000UL);
     }
     Serial.printf(
-      "OK:STATUS:mood=%s,expr=%u,bright=%u,boots=%lu,mins=%lu,love=%lu,lv=%u,temp=%.1f,rssi=%d,present=%d,pomo=%d,pomototal=%d,ai=%d,clock=%02u:%02u|quip=%s\n",
+      "OK:STATUS:mood=%s,expr=%u,bright=%u,boots=%lu,mins=%lu,love=%lu,lv=%u,temp=%.1f,rssi=%d,present=%d,pomo=%d,pomototal=%d,ai=%d,bonded=%d,pairing=%d,clock=%02u:%02u|quip=%s\n",
       moodNames[(uint8_t)currentMood],
       (unsigned)currentExprId,
       (unsigned)currentBrightness,
@@ -146,6 +146,8 @@ static void handleMochiCommand(char* line) {
       pomoRemSec,
       pomoTotalSec,
       (int)aiActiveMode,
+      isOwnerBonded() ? 1 : 0,
+      getPairingRemainingSec(),
       getWallHour(),
       getWallMinute(),
       (quipActive && currentQuip[0] != '\0') ? currentQuip : ""
@@ -345,14 +347,24 @@ static void handleMochiCommand(char* line) {
   }
 
   if (strncmp(cmd, "BLE:", 4) == 0) {
-    if (strcmp(cmd + 4, "LEARN") == 0) {
+    if (strcmp(cmd + 4, "PAIR") == 0) {
+      startBlePairingWindow(600);
+      showQuip("iPhone蓝牙点Clawd-Mochi", 8000);
+      pendingCustomExpr = DEMO_CURIOUS;
+      pendingEvent      = EVT_CUSTOM_EXPR;
+      Serial.println("OK:BLE:PAIRING");
+    } else if (strcmp(cmd + 4, "STOP_PAIR") == 0) {
+      stopBlePairingWindow();
+      showQuip("已退出配对模式~", 2500);
+      Serial.println("OK:BLE:STOP_PAIR");
+    } else if (strcmp(cmd + 4, "UNPAIR") == 0 || strcmp(cmd + 4, "RESET") == 0) {
+      resetBleBinding();
+      showQuip("已解除iPhone绑定~", 2800);
+      Serial.println("OK:BLE:RESET");
+    } else if (strcmp(cmd + 4, "LEARN") == 0) {
       showQuip("请把手表/手机贴近~", 3000);
       triggerBleLearn();
       Serial.println("OK:BLE:LEARNING");
-    } else if (strcmp(cmd + 4, "RESET") == 0) {
-      resetBleBinding();
-      showQuip("蓝牙感知已重置~", 2500);
-      Serial.println("OK:BLE:RESET");
     }
     return;
   }

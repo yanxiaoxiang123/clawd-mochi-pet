@@ -48,7 +48,9 @@ enum MochiEvent : uint8_t {
   EVT_CUSTOM_EXPR  = 12,  // Explicit expression trigger via USB
   EVT_CUSTOM_EGG   = 13,  // Explicit easter egg trigger (0..3)
   EVT_CUSTOM_IDLE  = 14,  // Explicit idle micro-animation trigger (0..5)
-  EVT_NAP_DEMO     = 15   // Demo nap -> stretch wake sequence
+  EVT_NAP_DEMO     = 15,  // Demo nap -> stretch wake sequence
+  EVT_BOND_SUCCESS = 16,  // iPhone BLE IRK bonding succeeded!
+  EVT_STRANGER     = 17   // Unbonded phone touched shell while bonded to owner!
 };
 
 enum AiMode : uint8_t {
